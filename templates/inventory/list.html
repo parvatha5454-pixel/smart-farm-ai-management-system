@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import page_head, empty, delete_form, table_filter, bar with context %}
+{% block title %}Inventory{% endblock %}
+{% block content %}
+{% call page_head('Inventory', 'fa-boxes-stacked', 'Seeds, fertilizers, tools and equipment, with low-stock alerts.') %}
+    {% if is_admin %}<a href="{{ url_for('inventory.add_item') }}" class="btn btn-success"><i class="fa-solid fa-plus me-1"></i>Add item</a>{% endif %}
+{% endcall %}
+<form class="toolbar" method="GET">
+    <div class="input-icon grow"><i class="fa-solid fa-magnifying-glass"></i><input type="text" class="form-control" name="search" placeholder="Search by item name" value="{{ search }}" aria-label="Search by item name"></div>
+    <select class="form-select w-auto" name="category" onchange="this.form.submit()" aria-label="Filter by category">
+        <option value="">All categories</option>
+        {% for c in categories %}<option value="{{ c }}" {% if category_filter == c %}selected{% endif %}>{{ c }}</option>{% endfor %}
+    </select>
+    <button class="btn btn-outline-secondary" type="submit">Search</button>
+    {{ table_filter('#invTable', 'Filter results instantly') }}
+</form>
+<div class="table-wrap">
+    {% if items %}
+    <div class="table-responsive">
+    <table class="table table-hover align-middle" id="invTable">
+        <thead><tr><th>Name</th><th>Category</th><th style="min-width:170px">Stock</th><th>Min. stock</th><th>Supplier</th><th>Cost</th>{% if is_admin %}<th class="text-end">Actions</th>{% endif %}</tr></thead>
+        <tbody>
+        {% for item in items %}
+            {% set pct = ((item.quantity / (item.minimum_stock_level * 2)) * 100)|round|int if item.minimum_stock_level else 100 %}
+            <tr class="{{ 'low-stock-row' if item.is_low_stock() else '' }}">
+                <td class="fw-semibold">{{ item.name }}</td>
+                <td>{{ item.category or '-' }}</td>
+                <td>
+                    {{ item.quantity }} {{ item.unit or '' }}
+                    {% if item.is_low_stock() %}<span class="badge bg-danger ms-1">Low stock</span>{% endif %}
+                    {% if item.minimum_stock_level %}<div class="mt-1">{{ bar(pct, 'danger' if item.is_low_stock() else '') }}</div>{% endif %}
+                </td>
+                <td>{{ item.minimum_stock_level }}</td>
+                <td>{{ item.supplier or '-' }}</td>
+                <td>₹{{ '%.2f'|format(item.cost) }}</td>
+                {% if is_admin %}
+                <td class="text-end text-nowrap">
+                    <a href="{{ url_for('inventory.edit_item', item_id=item.id) }}" class="btn btn-icon btn-outline-warning" title="Edit" aria-label="Edit {{ item.name }}"><i class="fa-solid fa-pen"></i></a>
+                    {{ delete_form(url_for('inventory.delete_item', item_id=item.id), item.name) }}
+                </td>
+                {% endif %}
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    <div class="filter-empty text-center text-muted py-4" hidden>No items match that filter.</div>
+    {% else %}
+    {% call empty('No inventory items found', 'Add seeds, fertilizers or tools to track stock levels.') %}{% if is_admin %}<a href="{{ url_for('inventory.add_item') }}" class="btn btn-success">Add an item</a>{% endif %}{% endcall %}
+    {% endif %}
+</div>
+{% endblock %}

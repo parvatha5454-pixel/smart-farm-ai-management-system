@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import page_head, csrf with context %}
+{% block title %}{{ 'Edit' if mode == 'edit' else 'Add' }} task{% endblock %}
+{% block content %}
+{% set t = task %}
+{% call page_head(('Edit' if mode == 'edit' else 'Add') ~ ' task', 'fa-list-check', 'Assign the job to a worker and set a due date.') %}{% endcall %}
+<div class="card form-card"><div class="card-body">
+    <form method="POST">
+        {{ csrf() }}
+        <div class="mb-3"><label class="form-label" for="title">Task title</label><input type="text" class="form-control" id="title" name="title" value="{{ t.title or '' }}" required maxlength="150"></div>
+        <div class="mb-3"><label class="form-label" for="description">Description</label><textarea class="form-control" id="description" name="description" rows="3">{{ t.description or '' }}</textarea></div>
+        <div class="mb-3">
+            <label class="form-label" for="worker_id">Assign to worker</label>
+            <select class="form-select" id="worker_id" name="worker_id" required>
+                <option value="">Select a worker</option>
+                {% for w in workers %}<option value="{{ w.id }}" {% if (t.worker_id|string) == (w.id|string) %}selected{% endif %}>{{ w.name }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="row">
+            <div class="col-md-4 mb-3"><label class="form-label" for="due_date">Due date</label>
+                <input type="date" class="form-control" id="due_date" name="due_date" value="{{ t.due_date if t.due_date is string else (t.due_date.strftime('%Y-%m-%d') if t.due_date) }}" required></div>
+            <div class="col-md-4 mb-3"><label class="form-label" for="priority">Priority</label>
+                <select class="form-select" id="priority" name="priority">{% for p in priorities %}<option value="{{ p }}" {% if t.priority == p %}selected{% endif %}>{{ p }}</option>{% endfor %}</select></div>
+            <div class="col-md-4 mb-3"><label class="form-label" for="status">Status</label>
+                <select class="form-select" id="status" name="status">{% for s in statuses %}<option value="{{ s }}" {% if t.status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></div>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-success"><i class="fa-solid fa-floppy-disk me-1"></i>Save task</button>
+            <a href="{{ url_for('tasks.list_tasks') }}" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+    </form>
+</div></div>
+{% endblock %}

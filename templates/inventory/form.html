@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import page_head, csrf with context %}
+{% block title %}{{ 'Edit' if mode == 'edit' else 'Add' }} inventory item{% endblock %}
+{% block content %}
+{% set it = item %}
+{% call page_head(('Edit' if mode == 'edit' else 'Add') ~ ' inventory item', 'fa-boxes-stacked', 'Set a minimum stock level to get low-stock alerts.') %}{% endcall %}
+<div class="card form-card"><div class="card-body">
+    <form method="POST">
+        {{ csrf() }}
+        <div class="mb-3"><label class="form-label" for="name">Item name</label><input type="text" class="form-control" id="name" name="name" value="{{ it.name or '' }}" required maxlength="120"></div>
+        <div class="mb-3"><label class="form-label" for="category">Category</label>
+            <select class="form-select" id="category" name="category">{% for c in categories %}<option value="{{ c }}" {% if it.category == c %}selected{% endif %}>{{ c }}</option>{% endfor %}</select></div>
+        <div class="row">
+            <div class="col-md-4 mb-3"><label class="form-label" for="quantity">Quantity</label><input type="number" step="0.01" min="0" class="form-control" id="quantity" name="quantity" value="{{ it.quantity or 0 }}" required></div>
+            <div class="col-md-4 mb-3"><label class="form-label" for="unit">Unit</label><input type="text" class="form-control" id="unit" name="unit" value="{{ it.unit or '' }}" placeholder="kg, liters, units"></div>
+            <div class="col-md-4 mb-3"><label class="form-label" for="minimum_stock_level">Minimum stock level</label><input type="number" step="0.01" min="0" class="form-control" id="minimum_stock_level" name="minimum_stock_level" value="{{ it.minimum_stock_level or 0 }}"></div>
+        </div>
+        <div class="row">
+            <div class="col-md-6 mb-3"><label class="form-label" for="purchase_date">Purchase date</label>
+                <input type="date" class="form-control" id="purchase_date" name="purchase_date" value="{{ it.purchase_date if it.purchase_date is string else (it.purchase_date.strftime('%Y-%m-%d') if it.purchase_date) }}"></div>
+            <div class="col-md-6 mb-3"><label class="form-label" for="supplier">Supplier</label><input type="text" class="form-control" id="supplier" name="supplier" value="{{ it.supplier or '' }}"></div>
+        </div>
+        <div class="mb-3"><label class="form-label" for="cost">Cost (₹)</label><input type="number" step="0.01" min="0" class="form-control" id="cost" name="cost" value="{{ it.cost or 0 }}"></div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-success"><i class="fa-solid fa-floppy-disk me-1"></i>Save item</button>
+            <a href="{{ url_for('inventory.list_inventory') }}" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+    </form>
+</div></div>
+{% endblock %}

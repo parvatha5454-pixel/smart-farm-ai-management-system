@@ -1,0 +1,11 @@
+<div class="empty py-5">
+    <svg viewBox="0 0 120 90" aria-hidden="true" fill="none"><ellipse cx="60" cy="80" rx="46" ry="7" fill="#DCE9D6"/><path d="M60 62V34" stroke="#167A50" stroke-width="3" stroke-linecap="round"/><path d="M60 46c-14 0-22-8-22-20 14 0 22 8 22 20Z" fill="#C5E86C" stroke="#167A50" stroke-width="2"/></svg>
+    <h1 class="display-5 fw-bold mb-1">{{ code }}</h1>
+    <h3>{{ heading }}</h3>
+    <p>{{ message }}</p>
+    {% if session.get('user_id') %}
+    <a href="{{ url_for('dashboard.index') }}" class="btn btn-success"><i class="fa-solid fa-table-columns me-1"></i>Back to dashboard</a>
+    {% else %}
+    <a href="{{ url_for('auth.landing') }}" class="btn btn-success"><i class="fa-solid fa-house me-1"></i>Back to home</a>
+    {% endif %}
+</div>

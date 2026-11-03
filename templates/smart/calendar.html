@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import page_head, src with context %}
+{% block title %}Farm calendar{% endblock %}
+{% block content %}
+{% call page_head('Farm calendar', 'fa-calendar-days', 'Task deadlines, planting, harvest and irrigation in one view.') %}
+    {% if session.get('role') == 'admin' %}<a href="{{ url_for('copilot.planner') }}" class="btn btn-outline-success"><i class="fa-solid fa-calendar-week me-1"></i>Weekly planner</a><a href="{{ url_for('tasks.add_task') }}" class="btn btn-success"><i class="fa-solid fa-plus me-1"></i>Add task</a>{% endif %}
+{% endcall %}
+<div class="row g-3">
+    <div class="col-xl-9">
+        <div class="cal-head">
+            <button class="icon-btn" id="calPrev" type="button" aria-label="Previous month"><i class="fa-solid fa-chevron-left"></i></button>
+            <h2 id="calTitle" aria-live="polite"></h2>
+            <button class="icon-btn" id="calNext" type="button" aria-label="Next month"><i class="fa-solid fa-chevron-right"></i></button>
+            <button class="btn btn-outline-secondary btn-sm" id="calToday" type="button">Today</button>
+            <span class="ms-auto">{{ src('recorded') }}</span>
+        </div>
+        <div class="cal-grid" id="calGrid" role="grid" aria-label="Month calendar"></div>
+        <div class="cal-legend"><span><i style="background:#167A50"></i>Task</span><span><i style="background:#A8261F"></i>Overdue task</span><span><i style="background:#4F7A3A"></i>Planting</span><span><i style="background:#8A5A00"></i>Expected harvest</span><span><i style="background:#0B6B63"></i>Irrigation</span></div>
+    </div>
+    <div class="col-xl-3"><div class="card"><div class="card-body">
+        <h2 class="panel-title" id="dayTitle">Select a day</h2>
+        <div id="dayList" class="small text-muted">Click a date to see what is scheduled.</div>
+    </div></div></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+    var events = {}, view = new Date(); view.setDate(1);
+    var sel = null, grid = document.getElementById('calGrid');
+    function key(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+    var todayKey = key(new Date());
+    function showDay(k) {
+        sel = k;
+        var list = document.getElementById('dayList'); list.textContent = '';
+        var d = new Date(k + 'T00:00:00');
+        document.getElementById('dayTitle').textContent = d.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
+        var evs = events[k] || [];
+        if (!evs.length) list.appendChild(SF.el('div', 'text-muted', 'Nothing scheduled.'));
+        evs.forEach(function (e) {
+            var row = SF.el('div', 'mb-2'); var t = SF.el('span', 'ev ' + e.type + (e.done ? ' done' : ''), e.title); t.style.whiteSpace = 'normal';
+            row.appendChild(t); row.appendChild(SF.el('div', 'small text-muted mt-1', e.detail)); list.appendChild(row);
+        });
+        draw();
+    }
+    function draw() {
+        grid.textContent = '';
+        ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].forEach(function (n) { grid.appendChild(SF.el('div', 'cal-dow', n)); });
+        document.getElementById('calTitle').textContent = view.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+        var first = new Date(view.getFullYear(), view.getMonth(), 1);
+        var offset = (first.getDay() + 6) % 7;
+        var start = new Date(first); start.setDate(1 - offset);
+        for (var i = 0; i < 42; i++) {
+            var d = new Date(start); d.setDate(start.getDate() + i);
+            var k = key(d);
+            var cell = SF.el('button', 'cal-cell' + (d.getMonth() !== view.getMonth() ? ' other' : '') + (k === todayKey ? ' today' : '') + (k === sel ? ' sel' : ''));
+            cell.type = 'button'; cell.dataset.k = k;
+            cell.setAttribute('aria-label', d.toDateString() + ', ' + ((events[k] || []).length) + ' events');
+            cell.appendChild(SF.el('span', 'd', String(d.getDate())));
+            var evs = events[k] || [];
+            evs.slice(0, 3).forEach(function (e) { cell.appendChild(SF.el('span', 'ev ' + e.type + (e.done ? ' done' : ''), e.title)); });
+            if (evs.length > 3) cell.appendChild(SF.el('span', 'ev-more', '+' + (evs.length - 3) + ' more'));
+            if (evs.length) { var dots = SF.el('div'); evs.slice(0, 4).forEach(function (e) { var dot = SF.el('span', 'ev-dot'); dot.style.background = ({ task: '#167A50', overdue: '#A8261F', harvest: '#8A5A00', planting: '#4F7A3A', irrigation: '#0B6B63' })[e.type]; dots.appendChild(dot); }); cell.appendChild(dots); }
+            cell.addEventListener('click', (function (kk) { return function () { showDay(kk); }; })(k));
+            grid.appendChild(cell);
+        }
+    }
+    document.getElementById('calPrev').addEventListener('click', function () { view.setMonth(view.getMonth() - 1); draw(); });
+    document.getElementById('calNext').addEventListener('click', function () { view.setMonth(view.getMonth() + 1); draw(); });
+    document.getElementById('calToday').addEventListener('click', function () { view = new Date(); view.setDate(1); showDay(todayKey); });
+    SF.get('{{ url_for("smart.api_calendar") }}').then(function (d) {
+        (d.events || []).forEach(function (e) { (events[e.date] = events[e.date] || []).push(e); });
+        showDay(todayKey);
+    }).catch(function () { SF.toast('The calendar could not load events.', 'danger'); draw(); });
+})();
+</script>
+{% endblock %}

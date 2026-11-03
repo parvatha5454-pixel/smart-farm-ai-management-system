@@ -1,0 +1,203 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import page_head, kpi, src, status, bar, empty with context %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+
+{% if is_admin %}
+<section class="hero mb-4">
+    <h1>Welcome back, {{ session.get('full_name').split(' ')[0] }}.</h1>
+    <p>{{ today.strftime('%A, %d %B %Y') }}.
+        {% if overdue_tasks %}{{ overdue_tasks|length }} task{{ '' if overdue_tasks|length == 1 else 's' }} need attention.{% else %}No overdue tasks right now.{% endif %}
+        Everything below is calculated from your saved records unless it is marked as an estimate.</p>
+    <div class="hero-stats">
+        <div class="glass hero-stat"><b>{{ due_today }}</b><span>due today</span></div>
+        <div class="glass hero-stat"><b>{{ overdue_tasks|length }}</b><span>overdue</span></div>
+        <div class="glass hero-stat"><b>{{ low_stock_count }}</b><span>low stock</span></div>
+        <div class="glass hero-stat"><b>{{ unsaved_suggestions }}</b><span>planner suggestions waiting</span></div>
+    </div>
+</section>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">{{ kpi('Total fields', total_fields, 'fa-map', 'Open field overview', href=url_for('smart.field_overview')) }}</div>
+    <div class="col-6 col-lg-3">{{ kpi('Active crops', active_crops, 'fa-seedling', 'of ' ~ total_crops ~ ' crops recorded', href=url_for('crops.list_crops')) }}</div>
+    <div class="col-6 col-lg-3">{{ kpi('Workers', total_workers, 'fa-people-group', 'On your team', tone='info', href=url_for('workers.list_workers')) }}</div>
+    <div class="col-6 col-lg-3">{{ kpi('Pending tasks', pending_tasks, 'fa-list-check', completed_tasks ~ ' completed', tone='warn', href=url_for('tasks.list_tasks')) }}</div>
+    <div class="col-6 col-lg-3">{{ kpi('This month\'s expenses', '₹' ~ ('{:,.0f}'.format(month_expense)), 'fa-wallet', month_label ~ ' · all time ₹' ~ ('{:,.0f}'.format(total_expenses)), href=url_for('expenses.list_expenses')) }}</div>
+    <div class="col-6 col-lg-3">
+        <a class="kpi-link" href="{{ url_for('inventory.list_inventory') }}">
+        <div class="card kpi {{ 'warn' if low_stock_count else '' }}">
+            <div class="kpi-top"><span>Inventory status</span><span class="kpi-ico"><i class="fa-solid fa-boxes-stacked"></i></span></div>
+            {% if inventory_total %}
+            <div class="kpi-val">{{ inventory_ok_percent }}<small>% stocked</small></div>
+            {{ bar(inventory_ok_percent, 'warn' if low_stock_count else '') }}
+            <div class="kpi-foot">{{ low_stock_count }} of {{ inventory_total }} items below minimum</div>
+            {% else %}
+            <div class="kpi-val">0</div><div class="kpi-foot">No items recorded yet</div>
+            {% endif %}
+        </div></a>
+    </div>
+    <div class="col-12 col-lg-6">
+        <div class="card kpi">
+            <div class="kpi-top"><span>Task completion</span><span class="kpi-ico"><i class="fa-solid fa-circle-check"></i></span></div>
+            {% if task_completion_rate is not none %}
+            <div class="d-flex align-items-center gap-3">
+                <div class="ring" style="--p: {{ task_completion_rate }}"><b>{{ task_completion_rate }}%</b></div>
+                <div class="kpi-foot">{{ completed_tasks }} of {{ task_status_values|sum }} tasks are completed.</div>
+            </div>
+            {% else %}<div class="kpi-foot">Add tasks to see your completion rate.</div>{% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-lg-4">
+        <div class="card h-100"><div class="card-body">
+            <h2 class="panel-title"><i class="fa-solid fa-cloud-sun-rain"></i>Weather {{ src('estimate') }}<a class="more" href="{{ url_for('smart.weather') }}">Details</a></h2>
+            <div id="weatherCard" data-location="{{ farm_location }}"><div class="skeleton mb-2" style="height:22px;width:60%"></div><div class="skeleton mb-2" style="height:14px"></div><div class="skeleton" style="height:14px;width:80%"></div></div>
+        </div></div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card h-100"><div class="card-body">
+            <h2 class="panel-title"><i class="fa-solid fa-calendar-check"></i>Upcoming tasks {{ src('recorded') }}<a class="more" href="{{ url_for('smart.calendar') }}">Calendar</a></h2>
+            {% for t in upcoming_tasks %}
+            <div class="task-row">
+                <div class="date-chip"><b>{{ t.due_date.strftime('%d') }}</b><span>{{ t.due_date.strftime('%b') }}</span></div>
+                <div class="flex-grow-1 min-w-0"><div class="fw-semibold">{{ t.title }}</div><div class="small text-muted">{{ t.worker.name if t.worker else 'Unassigned' }}</div></div>
+                <span class="badge priority-{{ t.priority }}">{{ t.priority }}</span>
+            </div>
+            {% else %}
+            {% call empty('Nothing coming up', 'No open tasks have a future due date.') %}<a class="btn btn-sm btn-success" href="{{ url_for('tasks.add_task') }}">Add a task</a>{% endcall %}
+            {% endfor %}
+        </div></div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card h-100"><div class="card-body">
+            <h2 class="panel-title"><i class="fa-solid fa-clock-rotate-left"></i>Recent farm activity {{ src('recorded') }}</h2>
+            {% if recent_activities %}
+            <ul class="timeline">
+                {% for when, icon, text in recent_activities %}
+                <li><span class="tl-dot"><i class="fa-solid {{ icon }}"></i></span><div><div>{{ text }}</div><div class="tl-when">{{ when.strftime('%d %b %Y') }}</div></div></li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            {{ empty('No activity yet', 'Added tasks, crops and expenses will appear here.') }}
+            {% endif %}
+        </div></div>
+    </div>
+</div>
+
+<div class="card mb-4"><div class="card-body">
+    <h2 class="panel-title"><i class="fa-solid fa-lightbulb"></i>Farm recommendations<a class="more" href="{{ url_for('smart.insights_center') }}">Open AI insights</a></h2>
+    <p class="small text-muted">Rule-based notes from your own records. For AI-written briefings, open the insights centre.</p>
+    {% for i in dash_insights %}
+    <div class="reco">
+        <span class="ico tone-{{ i.tone }}"><i class="fa-solid fa-lightbulb"></i></span>
+        <div><h4>{{ i.title }} {{ src(i.basis) }}</h4><p>{{ i.detail }}</p></div>
+    </div>
+    {% else %}
+    {{ empty('All clear', 'Nothing in your records needs attention right now.') }}
+    {% endfor %}
+</div></div>
+
+{% if low_stock_items %}
+<div class="note warn mb-4" role="status"><i class="fa-solid fa-triangle-exclamation mt-1"></i>
+    <div><strong>{{ low_stock_count }} item(s)</strong> are below minimum stock level:
+    {% for item in low_stock_items %}<span class="badge bg-warning text-dark me-1">{{ item.name }}</span>{% endfor %}</div>
+</div>
+{% endif %}
+
+<div class="row g-3">
+    <div class="col-xl-6"><div class="card h-100"><div class="card-body"><h2 class="panel-title">Monthly expense analytics</h2><div class="chart-box"><canvas id="monthlyExpenseChart" role="img" aria-label="Monthly expenses line chart"></canvas></div></div></div></div>
+    <div class="col-xl-6"><div class="card h-100"><div class="card-body"><h2 class="panel-title">Expenses by category</h2><div class="chart-box"><canvas id="expenseChart" role="img" aria-label="Expenses by category chart"></canvas></div></div></div></div>
+    <div class="col-xl-4 col-md-6"><div class="card h-100"><div class="card-body"><h2 class="panel-title">Crop distribution</h2><div class="chart-box"><canvas id="cropDistChart" role="img" aria-label="Active crops by name"></canvas></div></div></div></div>
+    <div class="col-xl-4 col-md-6"><div class="card h-100"><div class="card-body"><h2 class="panel-title">Crop status</h2><div class="chart-box"><canvas id="cropStatusChart" role="img" aria-label="Crops by status"></canvas></div></div></div></div>
+    <div class="col-xl-4"><div class="card h-100"><div class="card-body"><h2 class="panel-title">Task completion</h2><div class="chart-box"><canvas id="taskStatusChart" role="img" aria-label="Tasks by status"></canvas></div></div></div></div>
+</div>
+
+{% else %}
+<!-- Worker Dashboard -->
+<section class="hero mb-4">
+    <h1>Hello, {{ session.get('full_name').split(' ')[0] }}.</h1>
+    <p>{{ today.strftime('%A, %d %B %Y') }}. Here are the jobs assigned to you.</p>
+    <div class="hero-stats">
+        <div class="glass hero-stat"><b>{{ pending }}</b><span>pending</span></div>
+        <div class="glass hero-stat"><b>{{ in_progress }}</b><span>in progress</span></div>
+        <div class="glass hero-stat"><b>{{ completed }}</b><span>completed</span></div>
+        <div class="glass hero-stat"><b>{{ overdue_count }}</b><span>overdue</span></div>
+    </div>
+</section>
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">{{ kpi('Pending tasks', pending, 'fa-hourglass-half', tone='warn') }}</div>
+    <div class="col-6 col-md-3">{{ kpi('In progress', in_progress, 'fa-person-digging', tone='info') }}</div>
+    <div class="col-6 col-md-3">{{ kpi('Completed', completed, 'fa-circle-check') }}</div>
+    <div class="col-6 col-md-3">{{ kpi('Crops on the farm', total_crops, 'fa-seedling', href=url_for('crops.list_crops')) }}</div>
+</div>
+<div class="card"><div class="card-body">
+    <h2 class="panel-title"><i class="fa-solid fa-list-check"></i>My Assigned Tasks<a class="more" href="{{ url_for('tasks.list_tasks') }}">Manage status</a></h2>
+    {% if my_tasks %}
+    <div class="table-responsive">
+    <table class="table align-middle">
+        <thead><tr><th>Title</th><th>Due date</th><th>Priority</th><th>Status</th></tr></thead>
+        <tbody>
+        {% for task in my_tasks %}
+            <tr>
+                <td class="fw-semibold">{{ task.title }}</td>
+                <td>{{ task.due_date.strftime('%d %b %Y') if task.due_date else '-' }}</td>
+                <td><span class="badge priority-{{ task.priority }}">{{ task.priority }}</span></td>
+                <td>{{ status(task.status) }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    {{ empty('No tasks assigned yet', 'When the farm owner assigns you a task, it will show up here.') }}
+    {% endif %}
+</div></div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if is_admin %}
+<script>
+(function () {
+    var card = document.getElementById('weatherCard');
+    if (!card) return;
+    function put(text, cls) { card.textContent = ''; card.appendChild(SF.el('div', cls || '', text)); }
+    SF.get('{{ url_for("smart.api_weather_detail") }}').then(function (w) {
+        if (!w.available) { put('Forecast unavailable: ' + (w.reason || 'unknown reason'), 'small text-muted'); return; }
+        card.textContent = '';
+        var c = w.current || {};
+        card.appendChild(SF.el('div', 'small text-muted', w.location));
+        if (c.temp_c !== null && c.temp_c !== undefined) {
+            card.appendChild(SF.el('div', 'fs-2 fw-bold', Math.round(c.temp_c) + '\u00b0C'));
+            var bits = [];
+            if (c.humidity_percent != null) bits.push('Humidity ' + c.humidity_percent + '%');
+            if (c.wind_kmh != null) bits.push('Wind ' + Math.round(c.wind_kmh) + ' km/h');
+            if (bits.length) card.appendChild(SF.el('div', 'small text-muted mb-2', bits.join(' \u00b7 ')));
+        }
+        w.days.slice(0, 3).forEach(function (d) {
+            var row = SF.el('div', 'stat-line');
+            row.appendChild(SF.el('span', '', d.date));
+            row.appendChild(SF.el('b', '', (d.temp_min_c ?? '-') + '\u2013' + (d.temp_max_c ?? '-') + '\u00b0C \u00b7 ' + (d.rain_mm ?? '-') + ' mm'));
+            card.appendChild(row);
+        });
+        card.appendChild(SF.el('div', 'small text-muted mt-2', 'Source: ' + w.source));
+    }).catch(function () { put('Forecast unavailable (network error).', 'small text-muted'); });
+})();
+</script>
+<script>
+(function () {
+    var P = SF.palette;
+    SF.chart('expenseChart', { type: 'doughnut', data: { labels: {{ expense_labels|tojson }}, datasets: [{ data: {{ expense_values|tojson }}, backgroundColor: P, borderWidth: 2, borderColor: '#fff' }] }, options: { cutout: '62%', plugins: { legend: { position: 'bottom' } } } }, {{ 'true' if expense_values|length > 0 else 'false' }});
+    SF.chart('cropDistChart', { type: 'bar', data: { labels: {{ crop_dist_labels|tojson }}, datasets: [{ label: 'Active crops', data: {{ crop_dist_values|tojson }}, backgroundColor: '#167A50', borderRadius: 8 }] }, options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } }, y: { grid: { display: false } } } } }, {{ 'true' if crop_dist_values|length > 0 else 'false' }});
+    SF.chart('cropStatusChart', { type: 'doughnut', data: { labels: {{ crop_status_labels|tojson }}, datasets: [{ data: {{ crop_status_values|tojson }}, backgroundColor: ['#A8C5A0', '#167A50', '#C5E86C', '#123B2A'], borderWidth: 2, borderColor: '#fff' }] }, options: { cutout: '62%', plugins: { legend: { position: 'bottom' } } } }, {{ 'true' if crop_status_values|length > 0 else 'false' }});
+    SF.chart('taskStatusChart', { type: 'doughnut', data: { labels: {{ task_status_labels|tojson }}, datasets: [{ data: {{ task_status_values|tojson }}, backgroundColor: ['#A8C5A0', '#0B6B63', '#167A50'], borderWidth: 2, borderColor: '#fff' }] }, options: { cutout: '62%', plugins: { legend: { position: 'bottom' } } } }, {{ 'true' if task_status_values|length > 0 else 'false' }});
+    var ctx = document.getElementById('monthlyExpenseChart');
+    var grad = null;
+    if (ctx) { grad = ctx.getContext('2d').createLinearGradient(0, 0, 0, 280); grad.addColorStop(0, 'rgba(22,122,80,.35)'); grad.addColorStop(1, 'rgba(197,232,108,0)'); }
+    SF.chart('monthlyExpenseChart', { type: 'line', data: { labels: {{ monthly_labels|tojson }}, datasets: [{ label: 'Expenses (\u20b9)', data: {{ monthly_values|tojson }}, borderColor: '#167A50', backgroundColor: grad, fill: true, tension: .35, pointRadius: 4, pointBackgroundColor: '#C5E86C', pointBorderColor: '#123B2A' }] }, options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true }, x: { grid: { display: false } } } } }, {{ 'true' if monthly_values|length > 0 else 'false' }});
+})();
+</script>
+{% endif %}
+{% endblock %}

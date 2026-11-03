@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import page_head, status, empty with context %}
+{% block title %}{{ crop.name }}{% endblock %}
+{% block content %}
+{% call page_head(crop.name, 'fa-seedling', 'Crop details') %}
+    <a href="{{ url_for('crops.list_crops') }}" class="btn btn-outline-secondary"><i class="fa-solid fa-arrow-left me-1"></i>Back to crops</a>
+    <a href="{{ url_for('smart.crop_health') }}" class="btn btn-outline-success"><i class="fa-solid fa-heart-pulse me-1"></i>Crop health</a>
+{% endcall %}
+<div class="row g-3">
+    <div class="col-lg-7"><div class="card"><div class="card-body">
+        <dl class="kv">
+            <dt>Field</dt><dd>{{ crop.field.name }}</dd>
+            <dt>Planting date</dt><dd>{{ crop.planting_date.strftime('%d %b %Y') }}</dd>
+            <dt>Expected harvest</dt><dd>{{ crop.expected_harvest_date.strftime('%d %b %Y') if crop.expected_harvest_date else '-' }}</dd>
+            <dt>Status</dt><dd><span class="badge badge-status-{{ crop.status.replace(' ', '-') }}">{{ crop.status }}</span></dd>
+            <dt>Quantity</dt><dd>{{ crop.quantity }}</dd>
+            <dt>Notes</dt><dd>{{ crop.notes or '-' }}</dd>
+        </dl>
+    </div></div></div>
+    <div class="col-lg-5"><div class="card"><div class="card-body">
+        <h2 class="panel-title">Health observations</h2>
+        {% if crop.observations %}
+        <ul class="timeline">
+            {% for o in crop.observations|sort(attribute='observed_on', reverse=True) %}{% if loop.index <= 5 %}
+            <li><span class="tl-dot"><i class="fa-solid fa-magnifying-glass-plus"></i></span><div>{{ status(o.health_status) }}<div class="small">{{ o.notes or 'No notes.' }}</div><div class="tl-when">{{ o.observed_on.strftime('%d %b %Y') }}</div></div></li>
+            {% endif %}{% endfor %}
+        </ul>
+        {% else %}
+        {{ empty('No observations yet', 'Record what you see in the field on the Crop health page.') }}
+        {% endif %}
+    </div></div></div>
+</div>
+{% endblock %}

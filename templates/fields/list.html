@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import page_head, empty, delete_form, table_filter with context %}
+{% block title %}Fields{% endblock %}
+{% block content %}
+{% call page_head('Fields', 'fa-map', 'Land you manage, with soil and irrigation details.') %}
+    <a href="{{ url_for('smart.field_overview') }}" class="btn btn-outline-success"><i class="fa-solid fa-border-all me-1"></i>Field overview</a>
+    <a href="{{ url_for('fields.add_field') }}" class="btn btn-success"><i class="fa-solid fa-plus me-1"></i>Add field</a>
+{% endcall %}
+<form class="toolbar" method="GET">
+    <div class="input-icon grow"><i class="fa-solid fa-magnifying-glass"></i><input type="text" class="form-control" name="search" placeholder="Search by field name" value="{{ search }}" aria-label="Search by field name"></div>
+    <button class="btn btn-outline-secondary" type="submit">Search</button>
+    {{ table_filter('#fieldTable', 'Filter results instantly') }}
+</form>
+<div class="table-wrap">
+    {% if fields %}
+    <div class="table-responsive">
+    <table class="table table-hover align-middle" id="fieldTable">
+        <thead><tr><th>Name</th><th>Location</th><th>Area (acres)</th><th>Soil type</th><th>Irrigation</th><th class="text-end">Actions</th></tr></thead>
+        <tbody>
+        {% for field in fields %}
+            <tr>
+                <td class="fw-semibold"><a href="{{ url_for('fields.view_field', field_id=field.id) }}">{{ field.name }}</a></td>
+                <td>{{ field.location or '-' }}</td>
+                <td>{{ field.area }}</td>
+                <td>{{ field.soil_type or '-' }}</td>
+                <td>{{ field.irrigation_type or '-' }}</td>
+                <td class="text-end text-nowrap">
+                    <a href="{{ url_for('fields.view_field', field_id=field.id) }}" class="btn btn-icon btn-outline-primary" title="View" aria-label="View {{ field.name }}"><i class="fa-solid fa-eye"></i></a>
+                    <a href="{{ url_for('fields.edit_field', field_id=field.id) }}" class="btn btn-icon btn-outline-warning" title="Edit" aria-label="Edit {{ field.name }}"><i class="fa-solid fa-pen"></i></a>
+                    {{ delete_form(url_for('fields.delete_field', field_id=field.id), field.name) }}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    <div class="filter-empty text-center text-muted py-4" hidden>No fields match that filter.</div>
+    {% else %}
+    {% call empty('No fields found', 'Add your first field to start tracking crops and irrigation.') %}<a href="{{ url_for('fields.add_field') }}" class="btn btn-success">Add a field</a>{% endcall %}
+    {% endif %}
+</div>
+{% endblock %}

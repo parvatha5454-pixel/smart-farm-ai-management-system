@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import page_head, csrf with context %}
+{% block title %}{{ 'Edit' if mode == 'edit' else 'Add' }} crop{% endblock %}
+{% block content %}
+{% set c = crop %}
+{% call page_head(('Edit' if mode == 'edit' else 'Add') ~ ' crop', 'fa-seedling', 'Dates and field are required. Harvest date is optional.') %}{% endcall %}
+<div class="card form-card"><div class="card-body">
+    <form method="POST">
+        {{ csrf() }}
+        <div class="mb-3">
+            <label class="form-label" for="name">Crop name</label>
+            <input type="text" class="form-control" id="name" name="name" value="{{ c.name or '' }}" required maxlength="120">
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="field_id">Field</label>
+            <select class="form-select" id="field_id" name="field_id" required>
+                <option value="">Select a field</option>
+                {% for f in fields %}<option value="{{ f.id }}" {% if (c.field_id|string) == (f.id|string) %}selected{% endif %}>{{ f.name }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label class="form-label" for="planting_date">Planting date</label>
+                <input type="date" class="form-control" id="planting_date" name="planting_date" value="{{ c.planting_date if c.planting_date is string else (c.planting_date.strftime('%Y-%m-%d') if c.planting_date) }}" required>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label class="form-label" for="expected_harvest_date">Expected harvest date</label>
+                <input type="date" class="form-control" id="expected_harvest_date" name="expected_harvest_date" value="{{ c.expected_harvest_date if c.expected_harvest_date is string else (c.expected_harvest_date.strftime('%Y-%m-%d') if c.expected_harvest_date) }}">
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label class="form-label" for="status">Status</label>
+                <select class="form-select" id="status" name="status">
+                    {% for s in statuses %}<option value="{{ s }}" {% if c.status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label class="form-label" for="quantity">Quantity</label>
+                <input type="number" step="0.01" min="0" class="form-control" id="quantity" name="quantity" value="{{ c.quantity or 0 }}">
+            </div>
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="notes">Notes</label>
+            <textarea class="form-control" id="notes" name="notes" rows="3">{{ c.notes or '' }}</textarea>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-success"><i class="fa-solid fa-floppy-disk me-1"></i>Save crop</button>
+            <a href="{{ url_for('crops.list_crops') }}" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+    </form>
+</div></div>
+{% endblock %}

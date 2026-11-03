@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="theme-color" content="#123B2A">
+    <title>{% block title %}SmartFarm AI{% endblock %} · SmartFarm AI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    {% block head %}{% endblock %}
+</head>
+<body class="{% block body_class %}{% endblock %}">
+<a class="skip-link" href="#main">Skip to content</a>
+
+{% macro nav(endpoint, icon, label, match=None) %}
+    {% set ep = request.endpoint or '' %}
+    {% set on = (ep in (match or [endpoint])) %}
+    <a class="side-link {{ 'active' if on }}" href="{{ url_for(endpoint) }}" title="{{ label }}" {% if on %}aria-current="page"{% endif %}>
+        <i class="fa-solid {{ icon }}"></i><span class="label">{{ label }}</span>
+    </a>
+{% endmacro %}
+
+{% if session.get('user_id') %}
+{% set is_admin_user = session.get('role') == 'admin' %}
+<div class="app-shell">
+    <aside class="sidebar" id="sidebar" aria-label="Main navigation">
+        <a class="sidebar-brand" href="{{ url_for('dashboard.index') }}">
+            <span class="brand-mark"><i class="fa-solid fa-leaf"></i></span>
+            <span class="brand-text">SmartFarm AI<span class="brand-sub">Intelligent farm management</span></span>
+        </a>
+        <nav class="sidebar-scroll">
+            {{ nav('dashboard.index', 'fa-table-columns', 'Dashboard') }}
+
+            <div class="nav-group">Farm</div>
+            {% if is_admin_user %}
+            {{ nav('smart.field_overview', 'fa-border-all', 'Field overview') }}
+            {{ nav('fields.list_fields', 'fa-map', 'Fields', ['fields.list_fields','fields.add_field','fields.edit_field','fields.view_field']) }}
+            {% endif %}
+            {{ nav('crops.list_crops', 'fa-seedling', 'Crops', ['crops.list_crops','crops.add_crop','crops.edit_crop','crops.view_crop']) }}
+            {{ nav('smart.crop_health', 'fa-heart-pulse', 'Crop health') }}
+            {{ nav('smart.irrigation', 'fa-droplet', 'Irrigation') }}
+
+            <div class="nav-group">Operations</div>
+            {{ nav('tasks.list_tasks', 'fa-list-check', 'Tasks', ['tasks.list_tasks','tasks.add_task','tasks.edit_task']) }}
+            {{ nav('smart.calendar', 'fa-calendar-days', 'Calendar') }}
+            {% if is_admin_user %}
+            {{ nav('copilot.planner', 'fa-calendar-week', 'Weekly planner', ['copilot.planner','copilot.planner_generate']) }}
+            {{ nav('workers.list_workers', 'fa-people-group', 'Workers', ['workers.list_workers','workers.add_worker','workers.edit_worker','workers.view_worker']) }}
+            {% endif %}
+            {{ nav('inventory.list_inventory', 'fa-boxes-stacked', 'Inventory', ['inventory.list_inventory','inventory.add_item','inventory.edit_item']) }}
+            {% if is_admin_user %}
+            {{ nav('expenses.list_expenses', 'fa-wallet', 'Expenses', ['expenses.list_expenses','expenses.add_expense','expenses.edit_expense']) }}
+            {% endif %}
+
+            <div class="nav-group">Intelligence</div>
+            {{ nav('copilot.index', 'fa-wand-magic-sparkles', 'AI Copilot') }}
+            {% if is_admin_user %}
+            {{ nav('smart.insights_center', 'fa-lightbulb', 'AI insights') }}
+            {% endif %}
+            {{ nav('smart.weather', 'fa-cloud-sun-rain', 'Weather') }}
+            {% if is_admin_user %}
+            {{ nav('smart.analytics_center', 'fa-chart-line', 'Analytics') }}
+            {{ nav('reports.index', 'fa-file-lines', 'Reports') }}
+            {% endif %}
+        </nav>
+        <div class="sidebar-foot">
+            <div class="who-wrap">
+                <div class="who">{{ session.get('full_name') }}</div>
+                <div>{{ session.get('role')|capitalize }}</div>
+            </div>
+        </div>
+    </aside>
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+    <div class="main">
+        <header class="topbar">
+            <button class="icon-btn menu-btn" id="menuBtn" type="button" aria-label="Open menu" aria-controls="sidebar"><i class="fa-solid fa-bars"></i></button>
+            <button class="icon-btn collapse-btn" id="collapseBtn" type="button" aria-label="Collapse sidebar"><i class="fa-solid fa-angles-left"></i></button>
+            <div class="search-wrap" role="search">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="search" id="globalSearch" class="search-input" placeholder="Search crops, tasks, inventory{% if is_admin_user %}, fields, workers{% endif %}" autocomplete="off" aria-label="Search the farm">
+                <kbd>/</kbd>
+                <div class="search-pop" id="searchPop" hidden></div>
+            </div>
+            <div class="top-actions">
+                <div class="dropdown">
+                    <button class="icon-btn" id="notifBtn" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-label="Notifications" aria-expanded="false">
+                        <i class="fa-regular fa-bell"></i><span class="dot" id="notifDot" hidden>0</span>
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-end notif-menu">
+                        <div class="notif-head">Notifications</div>
+                        <div id="notifList"><div class="p-3"><div class="skeleton mb-2" style="height:16px"></div><div class="skeleton" style="height:16px;width:70%"></div></div></div>
+                    </div>
+                </div>
+                <div class="dropdown">
+                    <button class="user-chip" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Account menu">
+                        <span class="avatar">{{ (session.get('full_name') or '?')[:1]|upper }}</span><span class="nm">{{ (session.get('full_name') or '').split(' ')[0] }}</span><i class="fa-solid fa-chevron-down small"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li class="px-3 py-2"><div class="fw-bold">{{ session.get('full_name') }}</div><div class="small text-muted">{{ session.get('role')|capitalize }}</div></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{{ url_for('auth.profile') }}"><i class="fa-solid fa-id-card me-2"></i>Profile</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('copilot.index') }}"><i class="fa-solid fa-wand-magic-sparkles me-2"></i>AI Copilot</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}"><i class="fa-solid fa-right-from-bracket me-2"></i>Log out</a></li>
+                    </ul>
+                </div>
+            </div>
+        </header>
+
+        <main class="page page-enter" id="main">
+            {% block content %}{% endblock %}
+        </main>
+        <footer class="app-footer">&copy; 2026 SmartFarm AI &mdash; AI-assisted farm management. Suggestions are not expert advice.</footer>
+    </div>
+</div>
+
+{% if request.endpoint != 'copilot.index' %}
+<a href="{{ url_for('copilot.index') }}" class="ai-fab" title="Ask AI Copilot" aria-label="Open AI Copilot">
+    <span class="orb"><i class="fa-solid fa-wand-magic-sparkles"></i></span><span class="txt">Ask Copilot</span>
+</a>
+{% endif %}
+{% else %}
+{# Signed-out pages (landing, login, register, errors) draw their own layout. #}
+<main id="main">
+    {% block public %}
+    <div class="container py-5">{% block public_content %}{% endblock %}</div>
+    {% endblock %}
+</main>
+{% endif %}
+
+<div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="false"></div>
+<div id="flashData" hidden>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}<span data-cat="{{ category }}">{{ message }}</span>{% endfor %}
+    {% endwith %}
+</div>
+
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body p-4">
+                <div class="modal-icon"><i class="fa-solid fa-trash-can"></i></div>
+                <h5 class="modal-title mb-1" id="confirmDeleteTitle">Delete this record?</h5>
+                <p class="text-muted mb-0" id="confirmDeleteText">This cannot be undone.</p>
+            </div>
+            <div class="modal-footer border-0 pt-0 px-4 pb-4">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Keep it</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteYes">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>window.SF_URLS = { search: "{{ url_for('smart.api_search') }}", notifications: "{{ url_for('smart.api_notifications') }}" };</script>
+<script src="{{ url_for('static', filename='js/script.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

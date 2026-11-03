@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import page_head, src, empty with context %}
+{% block title %}Weather{% endblock %}
+{% block content %}
+{% call page_head('Weather intelligence', 'fa-cloud-sun-rain', 'Live forecast for your farm location, with planning notes for irrigation.') %}{% endcall %}
+<div id="wx"><div class="skeleton mb-3" style="height:170px;border-radius:22px"></div><div class="row g-3"><div class="col-6 col-md"><div class="skeleton" style="height:110px"></div></div><div class="col-6 col-md"><div class="skeleton" style="height:110px"></div></div><div class="col-6 col-md"><div class="skeleton" style="height:110px"></div></div></div></div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+    var root = document.getElementById('wx');
+    function fmt(v, u) { return (v === null || v === undefined) ? '-' : v + (u || ''); }
+    SF.get('{{ url_for("smart.api_weather_detail") }}').then(function (w) {
+        root.textContent = '';
+        if (!w.available) {
+            var n = SF.el('div', 'note warn');
+            n.appendChild(SF.el('i', 'fa-solid fa-cloud-bolt mt-1'));
+            var d = SF.el('div'); d.appendChild(SF.el('strong', '', 'Forecast unavailable. ')); d.appendChild(document.createTextNode(w.reason || 'Unknown reason.'));
+            d.appendChild(SF.el('div', 'small mt-1', 'Set FARM_LOCATION in your .env file (for example Madurai) and restart. No weather data is invented while this is off.'));
+            n.appendChild(d); root.appendChild(n); return;
+        }
+        var c = w.current || {};
+        var now = SF.el('div', 'wx-now mb-3');
+        var top = SF.el('div', 'd-flex justify-content-between flex-wrap gap-2 align-items-start');
+        var l = SF.el('div'); l.appendChild(SF.el('div', 'small', w.location)); l.appendChild(SF.el('div', 'wx-temp', fmt(c.temp_c !== null && c.temp_c !== undefined ? Math.round(c.temp_c) : null, '\u00b0C')));
+        l.appendChild(SF.el('div', 'small', 'Current conditions'));
+        top.appendChild(l); top.appendChild(SF.el('span', 'src src-estimate', 'Forecast \u00b7 ' + w.source));
+        now.appendChild(top);
+        var g = SF.el('div', 'wx-grid');
+        [['Humidity', fmt(c.humidity_percent, '%')], ['Wind', fmt(c.wind_kmh !== null && c.wind_kmh !== undefined ? Math.round(c.wind_kmh) : null, ' km/h')], ['Rain now', fmt(c.rain_mm, ' mm')],
+         ['3-day rain', fmt(w.days.slice(0, 3).reduce(function (a, d) { return a + (d.rain_mm || 0); }, 0).toFixed(1), ' mm')]].forEach(function (p) {
+            var cell = SF.el('div', 'glass'); cell.appendChild(SF.el('b', '', p[1])); cell.appendChild(SF.el('span', '', p[0])); g.appendChild(cell);
+        });
+        now.appendChild(g); root.appendChild(now);
+
+        var row = SF.el('div', 'row g-3 mb-3');
+        (w.alerts || []).forEach(function (a) {
+            var col = SF.el('div', 'col-md-6'); var n = SF.el('div', 'note warn');
+            n.appendChild(SF.el('i', 'fa-solid fa-triangle-exclamation mt-1'));
+            var d = SF.el('div'); d.appendChild(SF.el('strong', '', a.title + ' (' + a.date + '). ')); d.appendChild(document.createTextNode(a.detail));
+            d.appendChild(SF.el('div', 'small', 'Derived from forecast numbers, not an official warning.'));
+            n.appendChild(d); col.appendChild(n); row.appendChild(col);
+        });
+        (w.irrigation_hints || []).forEach(function (h) {
+            var col = SF.el('div', 'col-md-6'); var n = SF.el('div', 'note info');
+            n.appendChild(SF.el('i', 'fa-solid fa-droplet mt-1'));
+            var d = SF.el('div'); d.appendChild(SF.el('strong', '', 'Irrigation planning note. ')); d.appendChild(document.createTextNode(h));
+            d.appendChild(SF.el('div', 'small', 'Estimate only. Check soil moisture before changing your schedule.'));
+            n.appendChild(d); col.appendChild(n); row.appendChild(col);
+        });
+        root.appendChild(row);
+
+        var strip = SF.el('div', 'row g-2 mb-3');
+        w.days.forEach(function (d) {
+            var col = SF.el('div', 'col-6 col-md-3 col-xl'); var card = SF.el('div', 'card wx-day');
+            var dt = new Date(d.date + 'T00:00:00');
+            card.appendChild(SF.el('div', 'dd', dt.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })));
+            card.appendChild(SF.el('div', '', fmt(d.temp_max_c !== null ? Math.round(d.temp_max_c) : null, '\u00b0') + ' / ' + fmt(d.temp_min_c !== null ? Math.round(d.temp_min_c) : null, '\u00b0')));
+            card.appendChild(SF.el('div', 'rain', fmt(d.rain_mm, ' mm') + (d.rain_chance_percent !== null ? ' \u00b7 ' + d.rain_chance_percent + '%' : '')));
+            card.appendChild(SF.el('div', 'small text-muted', 'Wind ' + fmt(d.wind_max_kmh !== null ? Math.round(d.wind_max_kmh) : null, ' km/h')));
+            col.appendChild(card); strip.appendChild(col);
+        });
+        root.appendChild(strip);
+
+        var box = SF.el('div', 'card'); var body = SF.el('div', 'card-body');
+        body.appendChild(SF.el('h2', 'panel-title', 'Temperature and rainfall forecast'));
+        var cb = SF.el('div', 'chart-box'); var cv = document.createElement('canvas'); cv.setAttribute('role', 'img'); cv.setAttribute('aria-label', 'Forecast chart'); cb.appendChild(cv); body.appendChild(cb); box.appendChild(body); root.appendChild(box);
+        new Chart(cv, { data: { labels: w.days.map(function (d) { return d.date.slice(5); }), datasets: [
+            { type: 'bar', label: 'Rain (mm)', data: w.days.map(function (d) { return d.rain_mm; }), backgroundColor: 'rgba(11,107,99,.35)', borderRadius: 6, yAxisID: 'y1' },
+            { type: 'line', label: 'High (\u00b0C)', data: w.days.map(function (d) { return d.temp_max_c; }), borderColor: '#B7791F', tension: .35, yAxisID: 'y' },
+            { type: 'line', label: 'Low (\u00b0C)', data: w.days.map(function (d) { return d.temp_min_c; }), borderColor: '#167A50', tension: .35, yAxisID: 'y' }] },
+            options: { scales: { y: { position: 'left' }, y1: { position: 'right', beginAtZero: true, grid: { drawOnChartArea: false } } } } });
+    }).catch(function () { root.textContent = ''; root.appendChild(SF.el('div', 'note warn', 'Forecast unavailable (network error).')); });
+})();
+</script>
+{% endblock %}

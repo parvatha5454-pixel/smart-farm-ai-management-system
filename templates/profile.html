@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import page_head with context %}
+{% block title %}My profile{% endblock %}
+{% block content %}
+{% call page_head('My profile', 'fa-id-card', 'Your account details.') %}{% endcall %}
+<div class="row g-3">
+    <div class="col-lg-5"><div class="card"><div class="card-body text-center py-4">
+        <span class="avatar mx-auto mb-3" style="width:84px;height:84px;font-size:2rem">{{ user.full_name[:1]|upper }}</span>
+        <h2 class="h4 mb-1">{{ user.full_name }}</h2>
+        <span class="pill-status {{ 's-completed' if user.role == 'admin' else 's-growing' }}">{{ user.role|capitalize }}</span>
+    </div></div></div>
+    <div class="col-lg-7"><div class="card"><div class="card-body">
+        <dl class="kv">
+            <dt>Full name</dt><dd>{{ user.full_name }}</dd>
+            <dt>Email</dt><dd>{{ user.email }}</dd>
+            <dt>Phone</dt><dd>{{ user.phone or 'Not provided' }}</dd>
+            <dt>Role</dt><dd>{{ user.role|capitalize }}</dd>
+            <dt>Account created</dt><dd>{{ user.created_at.strftime('%d %b %Y') }}</dd>
+        </dl>
+    </div></div></div>
+</div>
+{% endblock %}

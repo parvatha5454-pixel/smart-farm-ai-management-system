@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import page_head, csrf with context %}
+{% block title %}{{ 'Edit' if mode == 'edit' else 'Add' }} worker{% endblock %}
+{% block content %}
+{% set w = worker %}
+{% call page_head(('Edit' if mode == 'edit' else 'Add') ~ ' worker', 'fa-people-group', 'Phone and joining date are required.') %}{% endcall %}
+<div class="card form-card"><div class="card-body">
+    <form method="POST">
+        {{ csrf() }}
+        <div class="mb-3"><label class="form-label" for="name">Name</label><input type="text" class="form-control" id="name" name="name" value="{{ w.name or '' }}" required maxlength="120"></div>
+        <div class="row">
+            <div class="col-md-6 mb-3"><label class="form-label" for="phone">Phone</label><input type="text" class="form-control" id="phone" name="phone" value="{{ w.phone or '' }}" required></div>
+            <div class="col-md-6 mb-3"><label class="form-label" for="email">Email</label><input type="email" class="form-control" id="email" name="email" value="{{ w.email or '' }}"></div>
+        </div>
+        <div class="mb-3"><label class="form-label" for="address">Address</label><input type="text" class="form-control" id="address" name="address" value="{{ w.address or '' }}"></div>
+        <div class="row">
+            <div class="col-md-6 mb-3"><label class="form-label" for="role">Job role</label><input type="text" class="form-control" id="role" name="role" value="{{ w.role or '' }}" placeholder="e.g. Field laborer"></div>
+            <div class="col-md-6 mb-3"><label class="form-label" for="joining_date">Joining date</label>
+                <input type="date" class="form-control" id="joining_date" name="joining_date" value="{{ w.joining_date if w.joining_date is string else (w.joining_date.strftime('%Y-%m-%d') if w.joining_date) }}" required></div>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-success"><i class="fa-solid fa-floppy-disk me-1"></i>Save worker</button>
+            <a href="{{ url_for('workers.list_workers') }}" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+    </form>
+</div></div>
+{% endblock %}

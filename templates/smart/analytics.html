@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import page_head, src, kpi with context %}
+{% block title %}Analytics{% endblock %}
+{% block content %}
+{% call page_head('Productivity analytics', 'fa-chart-line', 'Charts built only from your saved records.') %}
+    <a href="{{ url_for('reports.index') }}" class="btn btn-outline-success"><i class="fa-solid fa-file-lines me-1"></i>Reports</a>
+{% endcall %}
+<div class="row g-3 mb-3">
+    <div class="col-6 col-lg-3">{{ kpi('Task completion rate', (a.task_completion_rate ~ '%') if a.task_completion_rate is not none else '-', 'fa-circle-check', a.done_tasks ~ ' of ' ~ a.total_tasks ~ ' tasks') }}</div>
+    <div class="col-6 col-lg-3">{{ kpi('Crop types tracked', a.crop_perf_labels|length, 'fa-seedling') }}</div>
+    <div class="col-6 col-lg-3">{{ kpi('Workers with tasks', a.worker_labels|length, 'fa-people-group', tone='info') }}</div>
+    <div class="col-6 col-lg-3">{{ kpi('6-month spend', '₹' ~ '{:,.0f}'.format(a.month_expenses|sum), 'fa-wallet') }}</div>
+</div>
+<div class="grid-2">
+    <div class="card"><div class="card-body"><h2 class="panel-title">Crop performance {{ src('recorded') }}</h2><div class="chart-box"><canvas id="cPerf" role="img" aria-label="Recorded quantity per crop"></canvas></div><div class="small text-muted mt-2">Total of the quantity field on each crop.</div></div></div>
+    <div class="card"><div class="card-body"><h2 class="panel-title">Field productivity {{ src('recorded') }}</h2><div class="chart-box"><canvas id="cField" role="img" aria-label="Recorded quantity per acre by field"></canvas></div><div class="small text-muted mt-2">Recorded crop quantity divided by field area.</div></div></div>
+    <div class="card"><div class="card-body"><h2 class="panel-title">Monthly farm activity {{ src('recorded') }}</h2><div class="chart-box"><canvas id="cAct" role="img" aria-label="Monthly tasks and irrigation"></canvas></div></div></div>
+    <div class="card"><div class="card-body"><h2 class="panel-title">Monthly expenses {{ src('recorded') }}</h2><div class="chart-box"><canvas id="cExp" role="img" aria-label="Monthly expenses"></canvas></div></div></div>
+    <div class="card"><div class="card-body"><h2 class="panel-title">Worker activity {{ src('recorded') }}</h2><div class="chart-box"><canvas id="cWork" role="img" aria-label="Completed and open tasks per worker"></canvas></div></div></div>
+    <div class="card"><div class="card-body"><h2 class="panel-title">Expense breakdown {{ src('recorded') }}</h2><div class="chart-box"><canvas id="cCat" role="img" aria-label="Expenses by category"></canvas></div></div></div>
+</div>
+<div class="card mt-3"><div class="card-body">
+    <h2 class="panel-title">Inventory stock vs minimum {{ src('recorded') }}</h2>
+    <div class="chart-box tall"><canvas id="cInv" role="img" aria-label="Inventory stock against minimum"></canvas></div>
+    <div class="note neutral mt-3"><i class="fa-solid fa-circle-info mt-1"></i><div>Inventory <strong>consumption</strong> is not tracked because usage is not logged yet. This chart shows current stock against the minimum level instead.</div></div>
+</div></div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+    var has = function (arr) { return arr.some(function (v) { return v > 0; }); };
+    var bars = function (id, labels, data, color, label, horizontal) {
+        SF.chart(id, { type: 'bar', data: { labels: labels, datasets: [{ label: label, data: data, backgroundColor: color, borderRadius: 8 }] }, options: { indexAxis: horizontal ? 'y' : 'x', plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { display: !horizontal } }, x: { beginAtZero: true, grid: { display: !!horizontal } } } } }, has(data));
+    };
+    var cl = {{ a.crop_perf_labels|tojson }}, cv = {{ a.crop_perf_values|tojson }}, fl = {{ a.field_prod_labels|tojson }}, fv = {{ a.field_prod_values|tojson }};
+    bars('cPerf', cl, cv, '#167A50', 'Quantity', true);
+    bars('cField', fl, fv, '#0B6B63', 'Quantity per acre', false);
+    var m = {{ a.month_labels|tojson }};
+    var tc = {{ a.month_tasks_created|tojson }}, td = {{ a.month_tasks_completed|tojson }}, ir = {{ a.month_irrigations|tojson }};
+    SF.chart('cAct', { type: 'line', data: { labels: m, datasets: [
+        { label: 'Tasks created', data: tc, borderColor: '#123B2A', tension: .35 },
+        { label: 'Tasks completed (by due month)', data: td, borderColor: '#167A50', tension: .35 },
+        { label: 'Irrigations done', data: ir, borderColor: '#0B6B63', borderDash: [5, 4], tension: .35 }] }, options: { scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } } }, has(tc) || has(td) || has(ir));
+    var ex = {{ a.month_expenses|tojson }};
+    SF.chart('cExp', { type: 'line', data: { labels: m, datasets: [{ label: 'Expenses (\u20b9)', data: ex, borderColor: '#167A50', backgroundColor: 'rgba(197,232,108,.3)', fill: true, tension: .35 }] }, options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } } }, has(ex));
+    var wd = {{ a.worker_done|tojson }}, wo = {{ a.worker_open|tojson }};
+    SF.chart('cWork', { type: 'bar', data: { labels: {{ a.worker_labels|tojson }}, datasets: [{ label: 'Completed', data: wd, backgroundColor: '#167A50', borderRadius: 6 }, { label: 'Open', data: wo, backgroundColor: '#C5E86C', borderRadius: 6 }] }, options: { scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } } } } }, has(wd) || has(wo));
+    var ec = {{ a.exp_cat_values|tojson }};
+    SF.chart('cCat', { type: 'doughnut', data: { labels: {{ a.exp_cat_labels|tojson }}, datasets: [{ data: ec, backgroundColor: SF.palette, borderWidth: 2, borderColor: '#fff' }] }, options: { cutout: '60%', plugins: { legend: { position: 'right' } } } }, has(ec));
+    var iq = {{ a.inv_qty|tojson }}, im = {{ a.inv_min|tojson }};
+    SF.chart('cInv', { type: 'bar', data: { labels: {{ a.inv_labels|tojson }}, datasets: [{ label: 'In stock', data: iq, backgroundColor: '#167A50', borderRadius: 6 }, { label: 'Minimum', data: im, backgroundColor: '#C5E86C', borderRadius: 6 }] }, options: { scales: { y: { beginAtZero: true }, x: { grid: { display: false } } } } }, has(iq) || has(im));
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import page_head, status, empty with context %}
+{% block title %}{{ worker.name }}{% endblock %}
+{% block content %}
+{% call page_head(worker.name, 'fa-people-group', 'Worker details') %}
+    <a href="{{ url_for('workers.list_workers') }}" class="btn btn-outline-secondary"><i class="fa-solid fa-arrow-left me-1"></i>Back to workers</a>
+    <a href="{{ url_for('workers.edit_worker', worker_id=worker.id) }}" class="btn btn-outline-warning"><i class="fa-solid fa-pen me-1"></i>Edit</a>
+{% endcall %}
+<div class="row g-3">
+    <div class="col-lg-5"><div class="card"><div class="card-body">
+        <dl class="kv">
+            <dt>Phone</dt><dd>{{ worker.phone }}</dd>
+            <dt>Email</dt><dd>{{ worker.email or '-' }}</dd>
+            <dt>Address</dt><dd>{{ worker.address or '-' }}</dd>
+            <dt>Role</dt><dd>{{ worker.role or '-' }}</dd>
+            <dt>Joining date</dt><dd>{{ worker.joining_date.strftime('%d %b %Y') if worker.joining_date else '-' }}</dd>
+        </dl>
+    </div></div></div>
+    <div class="col-lg-7"><div class="card"><div class="card-body">
+        <h2 class="panel-title">Assigned tasks</h2>
+        {% if worker.tasks %}
+        <div class="table-responsive"><table class="table align-middle">
+            <thead><tr><th>Title</th><th>Due date</th><th>Priority</th><th>Status</th></tr></thead>
+            <tbody>{% for t in worker.tasks %}
+                <tr><td class="fw-semibold">{{ t.title }}</td><td>{{ t.due_date.strftime('%d %b %Y') if t.due_date else '-' }}</td><td><span class="badge priority-{{ t.priority }}">{{ t.priority }}</span></td><td>{{ status(t.status) }}</td></tr>
+            {% endfor %}</tbody>
+        </table></div>
+        {% else %}{{ empty('No tasks assigned yet') }}{% endif %}
+    </div></div></div>
+</div>
+{% endblock %}

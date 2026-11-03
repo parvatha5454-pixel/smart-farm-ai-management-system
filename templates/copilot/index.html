@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import page_head, src, csrf with context %}
+{% block title %}AI Copilot{% endblock %}
+{% block content %}
+{% call page_head('AI Farm Copilot', 'fa-wand-magic-sparkles', 'Ask about your farm in plain English. It reads your records, and you approve every change.') %}
+    <form method="POST" action="{{ url_for('copilot.clear_history') }}" class="d-inline" data-no-validate>
+        {{ csrf() }}
+        <button class="btn btn-outline-secondary" type="submit"><i class="fa-regular fa-trash-can me-1"></i>Clear history</button>
+    </form>
+{% endcall %}
+
+{% if not ai_configured %}
+<div class="note warn mb-3" role="alert"><i class="fa-solid fa-plug mt-1"></i>
+    <div><strong>AI chat is not set up.</strong> Add <code>AI_API_KEY</code> to your <code>.env</code> file and restart the app.
+    You can still use the <strong>Quick data</strong> buttons{% if session.get('role') == 'admin' %} and the <a href="{{ url_for('copilot.planner') }}">Weekly planner</a>{% endif %}. Those use only your real records.</div></div>
+{% endif %}
+
+<div class="row g-3">
+    <div class="col-xl-8">
+        <div class="card chat-shell">
+            <div id="chatBox" class="chat-box" aria-live="polite" aria-label="Conversation">
+                {% if not history %}
+                <div class="chat-welcome" id="chatEmpty">
+                    <div class="orb"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+                    <h2 class="h5">What would you like to know?</h2>
+                    <p>No messages yet. Pick a suggestion below or type a question.</p>
+                </div>
+                {% endif %}
+                {% for m in history %}
+                <div class="chat-row {{ m.role }}">
+                    <span class="chat-avatar">{% if m.role == 'user' %}{{ session.get('full_name')[:1]|upper }}{% else %}<i class="fa-solid fa-leaf"></i>{% endif %}</span>
+                    <div class="chat-msg {{ m.role }}" {% if m.role == 'assistant' %}data-format{% endif %}>{{ m.content }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            <div id="pendingArea" class="px-3 pt-2"></div>
+            <div class="chat-compose">
+                <div id="activity" class="small mb-2"></div>
+                <div class="prompt-row mb-2" aria-label="Suggested prompts">
+                    {% for ex in examples %}<button type="button" class="btn btn-sm btn-outline-success prompt-card" data-prompt="{{ ex }}">{{ ex }}</button>{% endfor %}
+                </div>
+                <div class="input-wrap">
+                    <input type="text" id="chatInput" class="form-control" maxlength="1000" placeholder="Ask about your farm..." aria-label="Your question" autocomplete="off">
+                    <button class="btn btn-success" id="sendBtn" type="button"><i class="fa-solid fa-paper-plane me-1"></i>Send</button>
+                </div>
+                <div class="form-text mt-2">Answers use your real records through approved tools. {{ src('ai') }} Check important decisions with a local agriculture expert.</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-4">
+        <div class="card mb-3"><div class="card-body">
+            <h2 class="panel-title"><i class="fa-solid fa-bolt"></i>Quick data</h2>
+            <p class="small text-muted">No AI needed. These read your saved records directly. {{ src('recorded') }}</p>
+            <div class="d-grid gap-2">
+                {% for name, label in quick_tools %}<button type="button" class="btn btn-outline-success quick-btn text-start" data-tool="{{ name }}">{{ label }}</button>{% endfor %}
+            </div>
+            <div id="quickResult" class="mt-3 small"></div>
+        </div></div>
+        <div class="card"><div class="card-body small">
+            <h2 class="panel-title">What the Copilot can do</h2>
+            <p class="mb-2">Read your records, suggest tasks and fetch a weather forecast.</p>
+            <p class="mb-0"><strong>It cannot</strong> control irrigation equipment or send notifications. Any change needs your approval first.</p>
+        </div></div>
+    </div>
+</div>
+
+<!-- Confirmation dialog -->
+<div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="confirmTitle">Save this change?</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p id="confirmPreview" class="fw-semibold"></p>
+                <p id="confirmReason" class="small text-muted mb-0"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" id="confirmYes">Yes, save it</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>window.INITIAL_PENDING = {{ pending|tojson }}; window.USER_INITIAL = {{ (session.get('full_name') or '?')[:1]|upper|tojson }};</script>
+<script src="{{ url_for('static', filename='js/copilot.js') }}"></script>
+{% endblock %}

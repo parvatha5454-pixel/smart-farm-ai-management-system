@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import page_head, empty, delete_form, table_filter with context %}
+{% block title %}Workers{% endblock %}
+{% block content %}
+{% call page_head('Workers', 'fa-people-group', 'Your farm team and their roles.') %}
+    <a href="{{ url_for('workers.add_worker') }}" class="btn btn-success"><i class="fa-solid fa-plus me-1"></i>Add worker</a>
+{% endcall %}
+<form class="toolbar" method="GET">
+    <div class="input-icon grow"><i class="fa-solid fa-magnifying-glass"></i><input type="text" class="form-control" name="search" placeholder="Search by name" value="{{ search }}" aria-label="Search by name"></div>
+    <button class="btn btn-outline-secondary" type="submit">Search</button>
+    {{ table_filter('#workerTable', 'Filter results instantly') }}
+</form>
+<div class="table-wrap">
+    {% if workers %}
+    <div class="table-responsive">
+    <table class="table table-hover align-middle" id="workerTable">
+        <thead><tr><th>Name</th><th>Phone</th><th>Email</th><th>Role</th><th>Joining date</th><th class="text-end">Actions</th></tr></thead>
+        <tbody>
+        {% for w in workers %}
+            <tr>
+                <td><div class="d-flex align-items-center gap-2"><span class="avatar">{{ w.name[:1]|upper }}</span><a class="fw-semibold" href="{{ url_for('workers.view_worker', worker_id=w.id) }}">{{ w.name }}</a></div></td>
+                <td>{{ w.phone }}</td><td>{{ w.email or '-' }}</td>
+                <td>{{ w.role or '-' }}</td><td>{{ w.joining_date.strftime('%d %b %Y') if w.joining_date else '-' }}</td>
+                <td class="text-end text-nowrap">
+                    <a href="{{ url_for('workers.view_worker', worker_id=w.id) }}" class="btn btn-icon btn-outline-primary" title="View" aria-label="View {{ w.name }}"><i class="fa-solid fa-eye"></i></a>
+                    <a href="{{ url_for('workers.edit_worker', worker_id=w.id) }}" class="btn btn-icon btn-outline-warning" title="Edit" aria-label="Edit {{ w.name }}"><i class="fa-solid fa-pen"></i></a>
+                    {{ delete_form(url_for('workers.delete_worker', worker_id=w.id), w.name) }}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    <div class="filter-empty text-center text-muted py-4" hidden>No workers match that filter.</div>
+    {% else %}
+    {% call empty('No workers found', 'Add your first team member to start assigning tasks.') %}<a href="{{ url_for('workers.add_worker') }}" class="btn btn-success">Add a worker</a>{% endcall %}
+    {% endif %}
+</div>
+{% endblock %}

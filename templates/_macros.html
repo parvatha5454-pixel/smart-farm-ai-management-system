@@ -1,0 +1,68 @@
+{# Reusable UI components. Import with: {% from '_macros.html' import ... with context %} #}
+
+{% macro csrf() %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endmacro %}
+
+{% macro page_head(title, icon, subtitle='') %}
+<div class="page-head">
+    <div>
+        <h1><span class="h-ico"><i class="fa-solid {{ icon }}"></i></span>{{ title }}</h1>
+        {% if subtitle %}<p>{{ subtitle }}</p>{% endif %}
+    </div>
+    <div class="d-flex gap-2 flex-wrap">{{ caller() if caller }}</div>
+</div>
+{% endmacro %}
+
+{% macro status(value) %}
+<span class="pill-status s-{{ (value or 'unknown')|lower|replace(' ', '-') }}">{{ value }}</span>
+{% endmacro %}
+
+{% macro src(kind) %}
+{% if kind == 'recorded' %}<span class="src src-recorded" title="From your saved records"><i class="fa-solid fa-database"></i>Recorded</span>
+{% elif kind == 'estimate' %}<span class="src src-estimate" title="Based on a forecast or rule. An estimate, not a fact."><i class="fa-solid fa-chart-line"></i>Estimate</span>
+{% elif kind == 'ai' %}<span class="src src-ai" title="Written by an AI model. Not a verified measurement."><i class="fa-solid fa-wand-magic-sparkles"></i>AI-generated</span>
+{% elif kind == 'demo' %}<span class="src src-demo" title="Illustration only"><i class="fa-solid fa-shapes"></i>Illustrative</span>
+{% endif %}
+{% endmacro %}
+
+{% macro kpi(label, value, icon, foot='', tone='', href='', unit='') %}
+{% if href %}<a class="kpi-link" href="{{ href }}">{% endif %}
+<div class="card kpi {{ tone }}">
+    <div class="kpi-top"><span>{{ label }}</span><span class="kpi-ico"><i class="fa-solid {{ icon }}"></i></span></div>
+    <div class="kpi-val">{{ value }}{% if unit %} <small>{{ unit }}</small>{% endif %}</div>
+    {% if foot %}<div class="kpi-foot">{{ foot }}</div>{% endif %}
+</div>
+{% if href %}</a>{% endif %}
+{% endmacro %}
+
+{% macro bar(percent, tone='') %}
+<div class="bar {{ tone }}" role="progressbar" aria-valuenow="{{ percent }}" aria-valuemin="0" aria-valuemax="100"><span style="--w: {{ [percent, 100]|min }}%"></span></div>
+{% endmacro %}
+
+{% macro empty(title, text='', icon='seedling') %}
+<div class="empty">
+    <svg viewBox="0 0 120 90" aria-hidden="true" fill="none">
+        <ellipse cx="60" cy="80" rx="46" ry="7" fill="#DCE9D6"/>
+        <path d="M14 80c10-14 22-18 46-18s36 4 46 18" stroke="#A8C5A0" stroke-width="2" stroke-linecap="round"/>
+        <path d="M60 62V34" stroke="#167A50" stroke-width="3" stroke-linecap="round"/>
+        <path d="M60 46c-14 0-22-8-22-20 14 0 22 8 22 20Z" fill="#C5E86C" stroke="#167A50" stroke-width="2"/>
+        <path d="M60 40c12 0 20-7 20-17-12 0-20 7-20 17Z" fill="#A8C5A0" stroke="#167A50" stroke-width="2"/>
+    </svg>
+    <h3>{{ title }}</h3>
+    {% if text %}<p>{{ text }}</p>{% endif %}
+    {{ caller() if caller }}
+</div>
+{% endmacro %}
+
+{% macro delete_form(url, name, label='Delete') %}
+<form method="POST" action="{{ url }}" class="d-inline confirm-delete-form" data-item-name="{{ name }}">
+    {{ csrf() }}
+    <button class="btn btn-icon btn-outline-danger" type="submit" title="{{ label }}" aria-label="{{ label }} {{ name }}"><i class="fa-solid fa-trash"></i></button>
+</form>
+{% endmacro %}
+
+{% macro table_filter(target, placeholder='Filter this list') %}
+<div class="input-icon grow">
+    <i class="fa-solid fa-filter"></i>
+    <input type="search" class="form-control" data-table-filter="{{ target }}" placeholder="{{ placeholder }}" aria-label="{{ placeholder }}">
+</div>
+{% endmacro %}

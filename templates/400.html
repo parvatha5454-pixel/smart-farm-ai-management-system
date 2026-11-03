@@ -1,0 +1,5 @@
+{% extends 'base.html' %}
+{% block title %}Security check failed{% endblock %}
+{% set code = '400' %}{% set heading = 'Request blocked' %}{% set message = error_message %}
+{% block content %}{% include '_error_body.html' %}{% endblock %}
+{% block public_content %}{% include '_error_body.html' %}{% endblock %}

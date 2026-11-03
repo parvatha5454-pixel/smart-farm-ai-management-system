@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import csrf with context %}
+{% block title %}Create account{% endblock %}
+{% block public %}
+<div class="auth-wrap">
+    <section class="auth-art">
+        <a href="{{ url_for('auth.landing') }}" class="sidebar-brand p-0"><span class="brand-mark"><i class="fa-solid fa-leaf"></i></span><span>SmartFarm AI</span></a>
+        <div>
+            <h2>Bring your whole farm team onto one page.</h2>
+            <ul class="auth-points">
+                <li><i class="fa-solid fa-user-tie"></i><span><b>Owners</b>See every field, cost and task, and approve what the AI proposes.</span></li>
+                <li><i class="fa-solid fa-people-group"></i><span><b>Workers</b>See their own tasks and record crop observations from the field.</span></li>
+            </ul>
+        </div>
+        <small class="text-white-50">Passwords are stored hashed. Sessions are protected against CSRF.</small>
+    </section>
+    <section class="auth-form-side">
+        <div class="auth-card">
+            <h1 class="h3 mb-1">Create your account</h1>
+            <p class="text-muted mb-4">It takes under a minute.</p>
+            <form method="POST" action="{{ url_for('auth.register') }}">
+                {{ csrf() }}
+                <div class="mb-3">
+                    <label class="form-label" for="full_name">Full name</label>
+                    <input type="text" class="form-control" id="full_name" name="full_name" value="{{ form.get('full_name', '') }}" required autocomplete="name">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="email">Email address</label>
+                    <input type="email" class="form-control" id="email" name="email" value="{{ form.get('email', '') }}" required autocomplete="email">
+                </div>
+                <div class="row">
+                    <div class="col-sm-6 mb-3">
+                        <label class="form-label" for="phone">Phone (optional)</label>
+                        <input type="text" class="form-control" id="phone" name="phone" value="{{ form.get('phone', '') }}" autocomplete="tel">
+                    </div>
+                    <div class="col-sm-6 mb-3">
+                        <label class="form-label" for="role">Role</label>
+                        <select class="form-select" id="role" name="role" required>
+                            <option value="worker" {% if form.get('role') == 'worker' %}selected{% endif %}>Farm worker</option>
+                            <option value="admin" {% if form.get('role') == 'admin' %}selected{% endif %}>Admin / farm owner</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="password">Password</label>
+                    <input type="password" class="form-control" id="password" name="password" required minlength="6" autocomplete="new-password">
+                    <div class="form-text">At least 6 characters.</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="confirm_password">Confirm password</label>
+                    <input type="password" class="form-control" id="confirm_password" name="confirm_password" required minlength="6" autocomplete="new-password">
+                </div>
+                <button type="submit" class="btn btn-success w-100 py-2">Create account</button>
+            </form>
+            <p class="text-center mt-3 mb-0">Already registered? <a href="{{ url_for('auth.login') }}">Log in</a></p>
+        </div>
+    </section>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+    var p = document.getElementById('password'), c = document.getElementById('confirm_password');
+    if (!p || !c) return;
+    function check() { c.setCustomValidity(c.value && c.value !== p.value ? 'Passwords do not match.' : ''); }
+    p.addEventListener('input', check); c.addEventListener('input', check);
+})();
+</script>
+{% endblock %}

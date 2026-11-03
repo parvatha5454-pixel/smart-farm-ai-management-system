@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import page_head, src, empty with context %}
+{% block title %}AI insights{% endblock %}
+{% block content %}
+{% call page_head('AI insights centre', 'fa-lightbulb', 'Notes from your records, and an optional AI briefing. Each item says where it comes from.') %}
+    <a href="{{ url_for('copilot.index') }}" class="btn btn-outline-success"><i class="fa-solid fa-wand-magic-sparkles me-1"></i>Ask the Copilot</a>
+{% endcall %}
+<div class="note info mb-3"><i class="fa-solid fa-circle-info mt-1"></i><div>
+    {{ src('recorded') }} comes from your saved records. {{ src('estimate') }} uses a forecast or a simple rule. {{ src('ai') }} is written by an AI model: it is a suggestion, not a measurement or a diagnosis. No sensors are connected.</div></div>
+<div class="row g-3">
+    <div class="col-lg-7">
+        <div class="card"><div class="card-body">
+            <h2 class="panel-title">Insights from your records and forecast</h2>
+            {% if categories %}<div class="filter-chips mb-3" role="group" aria-label="Filter insights"><button class="chip active" type="button" data-cat="all">All</button>{% for c in categories %}<button class="chip" type="button" data-cat="{{ c }}">{{ c }}</button>{% endfor %}</div>{% endif %}
+            {% for i in items %}
+            <div class="reco" data-cat="{{ i.category }}">
+                <span class="ico tone-{{ i.tone }}"><i class="fa-solid fa-lightbulb"></i></span>
+                <div><h4>{{ i.title }} {{ src(i.basis) }}</h4><div class="small text-muted mb-1">{{ i.category }}</div><p>{{ i.detail }}</p>
+                    {% if i.link %}<a class="reco-link" href="{{ url_for(i.link, **(i.link_args or {})) }}">{{ i.link_label }}</a>{% endif %}</div>
+            </div>
+            {% else %}
+            {{ empty('Nothing needs attention', 'Your records show no overdue tasks, low stock or harvest dates to act on.') }}
+            {% endfor %}
+        </div></div>
+    </div>
+    <div class="col-lg-5">
+        <div class="card"><div class="card-body">
+            <h2 class="panel-title">AI farm briefing {{ src('ai') }}</h2>
+            {% if ai_configured %}
+            <p class="small text-muted">The Copilot reads your records through read-only tools and writes a short briefing. It never saves changes from here.</p>
+            <button class="btn btn-success" id="aiBrief" type="button"><i class="fa-solid fa-wand-magic-sparkles me-1"></i>Generate briefing</button>
+            <div id="aiOut" class="mt-3"></div>
+            {% else %}
+            <div class="note warn"><i class="fa-solid fa-plug mt-1"></i><div><strong>AI is not set up.</strong> Add <code>AI_API_KEY</code> to your <code>.env</code> file and restart. The record-based insights on the left work without it.</div></div>
+            {% endif %}
+        </div></div>
+        <div class="card mt-3"><div class="card-body">
+            <h2 class="panel-title">Weather {{ src('estimate') }}</h2>
+            {% if weather.available %}<div class="small text-muted">{{ weather.location }}</div>
+                {% for h in weather.irrigation_hints %}<p class="mb-1">{{ h }}</p>{% endfor %}
+            {% else %}<p class="small text-muted mb-0">Forecast unavailable: {{ weather.reason }}</p>{% endif %}
+        </div></div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.querySelectorAll('button[data-cat]').forEach(function (b) {
+    b.addEventListener('click', function () {
+        document.querySelectorAll('button.chip').forEach(function (c) { c.classList.toggle('active', c === b); });
+        document.querySelectorAll('.reco[data-cat]').forEach(function (r) { r.hidden = !(b.dataset.cat === 'all' || r.dataset.cat === b.dataset.cat); });
+    });
+});
+var btn = document.getElementById('aiBrief');
+if (btn) btn.addEventListener('click', function () {
+    var out = document.getElementById('aiOut'); btn.disabled = true; out.textContent = '';
+    var t = SF.el('div', 'typing'); t.append(SF.el('i'), SF.el('i'), SF.el('i')); out.appendChild(t);
+    SF.post('{{ url_for("smart.insights_ai") }}', {}).then(function (r) {
+        out.textContent = '';
+        var box = SF.el('div', 'reco ai'); var body = SF.el('div');
+        body.appendChild(SF.el('h4', '', r.ok ? 'AI-generated briefing' : 'Could not generate a briefing'));
+        (r.reply || r.error || 'No answer.').split(/\n+/).forEach(function (line) { if (line.trim()) body.appendChild(SF.el('p', 'mb-1', line.trim())); });
+        if (r.ok) body.appendChild(SF.el('p', 'small text-muted mt-2', 'AI-written suggestion. Check important decisions with a local agriculture expert.'));
+        box.appendChild(body); out.appendChild(box);
+        if (!r.ok) SF.toast('The AI briefing failed. Your records are unchanged.', 'danger');
+    }).catch(function () { out.textContent = ''; SF.toast('Could not reach the server.', 'danger'); }).finally(function () { btn.disabled = false; });
+});
+</script>
+{% endblock %}

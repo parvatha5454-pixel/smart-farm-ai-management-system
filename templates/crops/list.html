@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import page_head, status, empty, delete_form, table_filter with context %}
+{% block title %}Crops{% endblock %}
+{% block content %}
+{% call page_head('Crops', 'fa-seedling', 'Every crop on the farm, from planting to harvest.') %}
+    <a href="{{ url_for('smart.crop_health') }}" class="btn btn-outline-success"><i class="fa-solid fa-heart-pulse me-1"></i>Crop health</a>
+    {% if is_admin %}<a href="{{ url_for('crops.add_crop') }}" class="btn btn-success"><i class="fa-solid fa-plus me-1"></i>Add crop</a>{% endif %}
+{% endcall %}
+
+<form class="toolbar" method="GET">
+    <div class="input-icon grow"><i class="fa-solid fa-magnifying-glass"></i><input type="text" class="form-control" name="search" placeholder="Search by crop name" value="{{ search }}" aria-label="Search by crop name"></div>
+    <select class="form-select w-auto" name="status" onchange="this.form.submit()" aria-label="Filter by status">
+        <option value="">All statuses</option>
+        {% for s in statuses %}<option value="{{ s }}" {% if status_filter == s %}selected{% endif %}>{{ s }}</option>{% endfor %}
+    </select>
+    <button class="btn btn-outline-secondary" type="submit">Search</button>
+    {{ table_filter('#cropTable', 'Filter results instantly') }}
+</form>
+
+<div class="table-wrap">
+    {% if crops %}
+    <div class="table-responsive">
+    <table class="table table-hover align-middle" id="cropTable">
+        <thead><tr><th>Name</th><th>Field</th><th>Planting date</th><th>Harvest date</th><th>Status</th><th>Quantity</th><th class="text-end">Actions</th></tr></thead>
+        <tbody>
+        {% for crop in crops %}
+            <tr>
+                <td class="fw-semibold"><a href="{{ url_for('crops.view_crop', crop_id=crop.id) }}">{{ crop.name }}</a></td>
+                <td>{{ crop.field.name }}</td>
+                <td>{{ crop.planting_date.strftime('%d %b %Y') }}</td>
+                <td>{{ crop.expected_harvest_date.strftime('%d %b %Y') if crop.expected_harvest_date else '-' }}</td>
+                <td><span class="badge badge-status-{{ crop.status.replace(' ', '-') }}">{{ crop.status }}</span></td>
+                <td>{{ crop.quantity }}</td>
+                <td class="text-end text-nowrap">
+                    <a href="{{ url_for('crops.view_crop', crop_id=crop.id) }}" class="btn btn-icon btn-outline-primary" title="View" aria-label="View {{ crop.name }}"><i class="fa-solid fa-eye"></i></a>
+                    {% if is_admin %}
+                    <a href="{{ url_for('crops.edit_crop', crop_id=crop.id) }}" class="btn btn-icon btn-outline-warning" title="Edit" aria-label="Edit {{ crop.name }}"><i class="fa-solid fa-pen"></i></a>
+                    {{ delete_form(url_for('crops.delete_crop', crop_id=crop.id), crop.name) }}
+                    {% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    <div class="filter-empty text-center text-muted py-4" hidden>No crops match that filter.</div>
+    {% else %}
+    {% call empty('No crops found', 'Try a different search, or add your first crop.') %}{% if is_admin %}<a href="{{ url_for('crops.add_crop') }}" class="btn btn-success">Add a crop</a>{% endif %}{% endcall %}
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import page_head, src, status, empty with context %}
+{% block title %}Field overview{% endblock %}
+{% block content %}
+{% call page_head('Field overview', 'fa-border-all', 'Every field at a glance: crops, soil, irrigation and recorded health.') %}
+    <a href="{{ url_for('fields.add_field') }}" class="btn btn-success"><i class="fa-solid fa-plus me-1"></i>Add field</a>
+    <a href="{{ url_for('fields.list_fields') }}" class="btn btn-outline-secondary">Manage fields</a>
+{% endcall %}
+<div class="note neutral mb-3"><i class="fa-solid fa-shapes mt-1"></i>
+    <div>{{ src('demo') }} The field pictures are an illustrative layout drawn from each field's crops. They are not a map or satellite view and do not show real boundaries.
+    Health shows only what was <strong>recorded</strong> on the Crop health page. No sensors are connected.</div></div>
+{% if cards %}
+<div class="d-flex flex-wrap gap-3 mb-3 small text-muted"><span><strong class="text-dark">{{ cards|length }}</strong> fields</span><span><strong class="text-dark">{{ '%.2f'|format(total_area) }}</strong> acres in total</span></div>
+<div class="toolbar"><div class="filter-chips" role="group" aria-label="Filter by health">
+    <button class="chip active" data-health="all" type="button">All</button>
+    {% for h in ['Healthy', 'Needs attention', 'Stressed', 'Not observed'] %}<button class="chip" data-health="{{ h }}" type="button">{{ h }}</button>{% endfor %}
+</div></div>
+<div class="plots" id="plots">
+{% for c in cards %}{% set f = c.field %}
+    <article class="card plot" data-health="{{ c.health }}">
+        <div class="plot-art" aria-hidden="true">
+            <svg viewBox="0 0 300 118" preserveAspectRatio="none">
+                <rect width="300" height="118" fill="#DCE9D6"/>
+                {% set n = [c.active_crops|length, 1]|max %}{% set w = (276 / n)|round(1) %}
+                {% for crop in c.active_crops[:8] %}
+                {% set x0 = 12 + loop.index0 * w %}
+                <rect x="{{ x0 }}" y="12" width="{{ w - 4 }}" height="94" rx="8" fill="{{ {'Planned':'#BFD3B8','Growing':'#6FB27F','Ready for Harvest':'#C5E86C'}.get(crop.status, '#A8C5A0') }}"/>
+                {% for k in range(1, 6) %}<path d="M{{ x0 + 6 }} {{ 12 + k * 15 }}h{{ w - 16 }}" stroke="#167A50" stroke-opacity=".35" stroke-width="2" stroke-linecap="round"/>{% endfor %}
+                {% else %}
+                <rect x="12" y="12" width="276" height="94" rx="10" fill="#EFEFE8" stroke="#A8C5A0" stroke-dasharray="6 5"/>
+                {% endfor %}
+            </svg>
+        </div>
+        <div class="plot-body">
+            <div class="d-flex justify-content-between align-items-start gap-2">
+                <h3><a href="{{ url_for('fields.view_field', field_id=f.id) }}">{{ f.name }}</a></h3>
+                {{ status(c.health) }}
+            </div>
+            <div class="plot-meta"><span><i class="fa-solid fa-ruler-combined"></i>{{ f.area }} acres</span><span><i class="fa-solid fa-mountain"></i>{{ f.soil_type or 'Soil not recorded' }}</span>{% if f.location %}<span><i class="fa-solid fa-location-dot"></i>{{ f.location }}</span>{% endif %}</div>
+            <div class="plot-rows">
+                <div class="r"><span>Crops</span><b>{% if c.active_crops %}{{ c.active_crops|map(attribute='name')|join(', ') }}{% else %}None active{% endif %}</b></div>
+                <div class="r"><span>Irrigation type</span><b>{{ f.irrigation_type or 'Not recorded' }}</b></div>
+                <div class="r"><span>Last irrigation logged</span><b>{{ c.last_irrigation.scheduled_for.strftime('%d %b') if c.last_irrigation else 'None logged' }}</b></div>
+                <div class="r"><span>Next planned</span><b>{{ c.next_irrigation.scheduled_for.strftime('%d %b') if c.next_irrigation else 'None planned' }}</b></div>
+            </div>
+            <div class="small text-muted">{{ c.health_detail }}</div>
+            <details><summary class="small fw-semibold" style="cursor:pointer">Activity history</summary>
+                {% if c.history %}<ul class="timeline mt-2">{% for when, icon, text in c.history %}<li><span class="tl-dot"><i class="fa-solid {{ icon }}"></i></span><div><div class="small">{{ text }}</div><div class="tl-when">{{ when.strftime('%d %b %Y') }}</div></div></li>{% endfor %}</ul>
+                {% else %}<div class="small text-muted mt-2">No activity recorded yet.</div>{% endif %}
+            </details>
+            <div class="mt-auto d-flex gap-2 flex-wrap pt-1">
+                <a class="btn btn-sm btn-outline-success" href="{{ url_for('smart.irrigation') }}"><i class="fa-solid fa-droplet me-1"></i>Irrigation</a>
+                <a class="btn btn-sm btn-outline-success" href="{{ url_for('smart.crop_health') }}"><i class="fa-solid fa-heart-pulse me-1"></i>Health</a>
+            </div>
+        </div>
+    </article>
+{% endfor %}
+</div>
+<div class="filter-empty-plots empty" hidden><h3>No fields match</h3></div>
+{% else %}
+<div class="card">{% call empty('No fields yet', 'Add a field to see it here.') %}<a href="{{ url_for('fields.add_field') }}" class="btn btn-success">Add a field</a>{% endcall %}</div>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script>
+document.querySelectorAll('[data-health]').forEach(function (b) {
+    if (b.tagName !== 'BUTTON') return;
+    b.addEventListener('click', function () {
+        document.querySelectorAll('button.chip').forEach(function (c) { c.classList.toggle('active', c === b); });
+        var shown = 0;
+        document.querySelectorAll('.plot').forEach(function (p) {
+            var ok = b.dataset.health === 'all' || p.dataset.health === b.dataset.health;
+            p.hidden = !ok; if (ok) shown++;
+        });
+        document.querySelector('.filter-empty-plots').hidden = shown !== 0;
+    });
+});
+</script>
+{% endblock %}

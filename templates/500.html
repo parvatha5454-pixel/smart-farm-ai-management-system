@@ -1,0 +1,5 @@
+{% extends 'base.html' %}
+{% block title %}Something went wrong{% endblock %}
+{% set code = '500' %}{% set heading = 'Something went wrong on our side' %}{% set message = 'Your data is safe. Please try again in a moment.' %}
+{% block content %}{% include '_error_body.html' %}{% endblock %}
+{% block public_content %}{% include '_error_body.html' %}{% endblock %}

@@ -1,0 +1,5 @@
+{% extends 'base.html' %}
+{% block title %}Page not found{% endblock %}
+{% set code = '404' %}{% set heading = 'This page does not exist' %}{% set message = 'The link may be old or mistyped. Use the menu to find what you need.' %}
+{% block content %}{% include '_error_body.html' %}{% endblock %}
+{% block public_content %}{% include '_error_body.html' %}{% endblock %}

@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% block title %}Intelligent farm management{% endblock %}
+{% block public %}
+<header class="landing-hero">
+    <div class="container">
+        <nav class="landing-nav">
+            <a href="{{ url_for('auth.landing') }}" class="sidebar-brand p-0"><span class="brand-mark"><i class="fa-solid fa-leaf"></i></span><span>SmartFarm AI</span></a>
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('auth.login') }}" class="btn btn-outline-light">Log in</a>
+                <a href="{{ url_for('auth.register') }}" class="btn btn-lime">Get started</a>
+            </div>
+        </nav>
+        <div class="row align-items-center pt-5 pb-3 g-5">
+            <div class="col-lg-7">
+                <h1>The farm office that thinks ahead.</h1>
+                <p class="lead mt-3">Manage fields, crops, workers, irrigation and costs in one workspace, with an AI Copilot that reads your records, suggests the next job and waits for your approval.</p>
+                <div class="d-flex gap-2 flex-wrap mt-4">
+                    <a href="{{ url_for('auth.register') }}" class="btn btn-lime btn-lg">Create your farm workspace</a>
+                    <a href="{{ url_for('auth.login') }}" class="btn btn-outline-light btn-lg">Log in</a>
+                </div>
+            </div>
+            <div class="col-lg-5">
+                <div class="glass p-4">
+                    <div class="fw-bold mb-3">How the Copilot works</div>
+                    <ol class="mb-0 ps-3" style="color:#E4EEDF">
+                        <li class="mb-2">You ask a question about your farm.</li>
+                        <li class="mb-2">It reads your saved records through approved, read-only tools.</li>
+                        <li class="mb-2">It may propose a task. Nothing is saved until you approve it.</li>
+                        <li>Every answer separates facts from suggestions.</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+<section class="container py-5">
+    <h2 class="mb-4">Everything the farm needs, in one place</h2>
+    <div class="row g-3">
+        {% for icon, title, text in [
+            ('fa-border-all', 'Field overview', 'Visual field cards with crops, soil, irrigation and recorded health.'),
+            ('fa-wand-magic-sparkles', 'AI Copilot', 'Ask in plain English. Approve or reject every proposed change.'),
+            ('fa-cloud-sun-rain', 'Weather intelligence', 'Live forecasts and irrigation planning notes when a location is set.'),
+            ('fa-droplet', 'Irrigation log', 'Plan and record watering, and see water use over time.'),
+            ('fa-heart-pulse', 'Crop health', 'Keep a dated history of pest, disease and growth observations.'),
+            ('fa-chart-line', 'Analytics', 'Crop performance, costs, workload and inventory in interactive charts.')] %}
+        <div class="col-md-4 col-sm-6"><div class="card feature"><div class="f-ico"><i class="fa-solid {{ icon }}"></i></div><h3 class="h5">{{ title }}</h3><p class="text-muted mb-0">{{ text }}</p></div></div>
+        {% endfor %}
+    </div>
+</section>
+<footer class="app-footer text-center">&copy; 2026 SmartFarm AI</footer>
+{% endblock %}

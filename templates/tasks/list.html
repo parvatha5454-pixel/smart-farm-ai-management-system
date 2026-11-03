@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import page_head, empty, delete_form, table_filter, csrf with context %}
+{% block title %}Tasks{% endblock %}
+{% block content %}
+{% call page_head('Tasks', 'fa-list-check', 'Jobs, owners and deadlines.') %}
+    <a href="{{ url_for('smart.calendar') }}" class="btn btn-outline-success"><i class="fa-solid fa-calendar-days me-1"></i>Calendar</a>
+    {% if is_admin %}<a href="{{ url_for('tasks.add_task') }}" class="btn btn-success"><i class="fa-solid fa-plus me-1"></i>Add task</a>{% endif %}
+{% endcall %}
+<form class="toolbar" method="GET">
+    {% if is_admin %}<div class="input-icon grow"><i class="fa-solid fa-magnifying-glass"></i><input type="text" class="form-control" name="search" placeholder="Search by title" value="{{ search }}" aria-label="Search by title"></div>{% endif %}
+    <select class="form-select w-auto" name="status" onchange="this.form.submit()" aria-label="Filter by status">
+        <option value="">All statuses</option>
+        {% for s in statuses %}<option value="{{ s }}" {% if status_filter == s %}selected{% endif %}>{{ s }}</option>{% endfor %}
+    </select>
+    <button class="btn btn-outline-secondary" type="submit">Search</button>
+    {{ table_filter('#taskTable', 'Filter results instantly') }}
+</form>
+<div class="table-wrap">
+    {% if tasks %}
+    <div class="table-responsive">
+    <table class="table table-hover align-middle" id="taskTable">
+        <thead><tr><th>Title</th>{% if is_admin %}<th>Worker</th>{% endif %}<th>Due date</th><th>Priority</th><th>Status</th><th class="text-end">Actions</th></tr></thead>
+        <tbody>
+        {% for t in tasks %}
+            <tr>
+                <td class="fw-semibold">{{ t.title }}</td>
+                {% if is_admin %}<td>{{ t.worker.name if t.worker else '-' }}</td>{% endif %}
+                <td>{{ t.due_date.strftime('%d %b %Y') if t.due_date else '-' }}</td>
+                <td><span class="badge priority-{{ t.priority }}">{{ t.priority }}</span></td>
+                <td>
+                    <form method="POST" action="{{ url_for('tasks.update_status', task_id=t.id) }}" class="d-inline" data-no-validate>
+                        {{ csrf() }}
+                        <select name="status" class="form-select form-select-sm d-inline w-auto" onchange="this.form.submit()" aria-label="Status for {{ t.title }}">
+                            {% for s in statuses %}<option value="{{ s }}" {% if t.status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}
+                        </select>
+                    </form>
+                </td>
+                <td class="text-end text-nowrap">
+                    {% if is_admin %}
+                    <a href="{{ url_for('tasks.edit_task', task_id=t.id) }}" class="btn btn-icon btn-outline-warning" title="Edit" aria-label="Edit {{ t.title }}"><i class="fa-solid fa-pen"></i></a>
+                    {{ delete_form(url_for('tasks.delete_task', task_id=t.id), t.title) }}
+                    {% else %}-{% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    <div class="filter-empty text-center text-muted py-4" hidden>No tasks match that filter.</div>
+    {% else %}
+    {% call empty('No tasks found', 'Try another filter, or add a task.') %}{% if is_admin %}<a href="{{ url_for('tasks.add_task') }}" class="btn btn-success">Add a task</a>{% endif %}{% endcall %}
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import page_head, src, status, empty, delete_form, csrf, kpi with context %}
+{% block title %}Irrigation{% endblock %}
+{% block content %}
+{% call page_head('Irrigation', 'fa-droplet', 'Plan and record watering for each field.') %}
+    {% if is_admin %}<button class="btn btn-success" type="button" data-bs-toggle="modal" data-bs-target="#irrModal"><i class="fa-solid fa-plus me-1"></i>Log or plan irrigation</button>{% endif %}
+{% endcall %}
+<div class="note neutral mb-3"><i class="fa-solid fa-hand mt-1"></i><div>This is a <strong>logbook</strong>, not a controller. SmartFarm AI does not switch pumps or valves, and no flow sensors are connected. Water amounts are only what you enter.</div></div>
+
+{% if weather and weather.available and weather.irrigation_hints %}
+<div class="note info mb-3"><i class="fa-solid fa-cloud-sun-rain mt-1"></i><div>{{ src('estimate') }} {{ weather.irrigation_hints[0] }}</div></div>
+{% endif %}
+
+{% if summary.by_field %}
+<div class="row g-3 mb-4">
+{% for r in summary.by_field %}
+    <div class="col-md-6 col-xl-4"><div class="card h-100"><div class="card-body">
+        <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+            <h2 class="h5 mb-0">{{ r.field.name }}</h2>
+            {% if r.overdue_planned %}<span class="pill-status s-needs-attention">{{ r.overdue_planned|length }} planned, past due</span>
+            {% elif r.next %}<span class="pill-status s-growing">Planned {{ r.next.scheduled_for.strftime('%d %b') }}</span>
+            {% else %}<span class="pill-status s-not-observed">Nothing planned</span>{% endif %}
+        </div>
+        <div class="small text-muted mb-2">{{ r.field.irrigation_type or 'Irrigation type not recorded' }} · {{ r.field.area }} acres</div>
+        <div class="stat-line"><span>Last irrigation logged</span><b>{{ r.last.scheduled_for.strftime('%d %b %Y') if r.last else 'None' }}</b></div>
+        <div class="stat-line"><span>Sessions logged</span><b>{{ r.sessions }}</b></div>
+        <div class="stat-line"><span>Water entered</span><b>{{ '{:,.0f}'.format(r.liters) }} L</b></div>
+        {% if is_admin and r.next %}
+        <form method="POST" action="{{ url_for('smart.irrigation_status', log_id=r.next.id) }}" class="mt-2" data-no-validate>{{ csrf() }}<input type="hidden" name="status" value="Done"><button class="btn btn-sm btn-outline-success" type="submit">Mark planned session as done</button></form>
+        {% endif %}
+    </div></div></div>
+{% endfor %}
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-lg-7"><div class="card h-100"><div class="card-body">
+        <h2 class="panel-title">Water use by week {{ src('recorded') }}</h2>
+        <div class="chart-box"><canvas id="waterChart" role="img" aria-label="Water entered per week"></canvas></div>
+        <div class="small text-muted mt-2">Only litres you entered on completed sessions are counted.</div>
+    </div></div></div>
+    <div class="col-lg-5"><div class="card h-100"><div class="card-body">
+        <h2 class="panel-title">Suggested schedule {{ src('estimate') }}</h2>
+        <p class="small text-muted">A starting point from your records. Adjust for soil moisture and crop stage.</p>
+        {% for r in summary.by_field if r.has_active_crop %}
+            <div class="stat-line"><span>{{ r.field.name }}</span><b>{% if r.suggest %}Review around {{ r.suggest.strftime('%d %b') }}{% else %}Log a first session{% endif %}</b></div>
+        {% else %}<div class="text-muted small">No fields with active crops.</div>{% endfor %}
+        <div class="small text-muted mt-2">Rule used: review three days after the last logged irrigation. It is not a crop water requirement.</div>
+    </div></div></div>
+</div>
+
+<div class="card"><div class="card-body">
+    <h2 class="panel-title">Irrigation records {{ src('recorded') }}</h2>
+    {% if summary.logs %}
+    <div class="table-responsive"><table class="table align-middle">
+        <thead><tr><th>Date</th><th>Field</th><th>Method</th><th>Duration</th><th>Water</th><th>Status</th>{% if is_admin %}<th class="text-end">Actions</th>{% endif %}</tr></thead>
+        <tbody>{% for l in summary.logs %}
+            <tr>
+                <td>{{ l.scheduled_for.strftime('%d %b %Y') }}</td><td class="fw-semibold">{{ l.field.name }}</td><td>{{ l.method or '-' }}</td>
+                <td>{{ l.duration_minutes ~ ' min' if l.duration_minutes else '-' }}</td><td>{{ '{:,.0f} L'.format(l.water_liters) if l.water_liters is not none else '-' }}</td>
+                <td>{{ status(l.status) }}{% if l.notes %}<div class="small text-muted">{{ l.notes }}</div>{% endif %}</td>
+                {% if is_admin %}<td class="text-end text-nowrap">
+                    {% if l.status == 'Planned' %}
+                    <form method="POST" action="{{ url_for('smart.irrigation_status', log_id=l.id) }}" class="d-inline" data-no-validate>{{ csrf() }}<input type="hidden" name="status" value="Done"><button class="btn btn-icon btn-outline-success" title="Mark done" aria-label="Mark done"><i class="fa-solid fa-check"></i></button></form>
+                    <form method="POST" action="{{ url_for('smart.irrigation_status', log_id=l.id) }}" class="d-inline" data-no-validate>{{ csrf() }}<input type="hidden" name="status" value="Skipped"><button class="btn btn-icon btn-outline-warning" title="Skip" aria-label="Skip"><i class="fa-solid fa-forward"></i></button></form>
+                    {% endif %}
+                    {{ delete_form(url_for('smart.irrigation_delete', log_id=l.id), 'this irrigation record') }}
+                </td>{% endif %}
+            </tr>{% endfor %}</tbody>
+    </table></div>
+    {% else %}{% call empty('No irrigation recorded', 'Log a session or plan the next one.') %}{% if is_admin %}<button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#irrModal">Log irrigation</button>{% endif %}{% endcall %}{% endif %}
+</div></div>
+{% else %}
+<div class="card">{% call empty('Add a field first', 'Irrigation is recorded per field.') %}{% if is_admin %}<a class="btn btn-success" href="{{ url_for('fields.add_field') }}">Add a field</a>{% endif %}{% endcall %}</div>
+{% endif %}
+
+{% if is_admin %}
+<div class="modal fade" id="irrModal" tabindex="-1" aria-labelledby="irrTitle" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+    <form method="POST" action="{{ url_for('smart.irrigation_add') }}">
+        {{ csrf() }}
+        <div class="modal-header"><h5 class="modal-title" id="irrTitle">Log or plan irrigation</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+        <div class="modal-body">
+            <div class="mb-3"><label class="form-label" for="irr_field">Field</label><select class="form-select" id="irr_field" name="field_id" required><option value="">Select a field</option>{% for f in fields %}<option value="{{ f.id }}">{{ f.name }}</option>{% endfor %}</select></div>
+            <div class="row">
+                <div class="col-6 mb-3"><label class="form-label" for="irr_date">Date</label><input type="date" class="form-control" id="irr_date" name="scheduled_for" value="{{ today.isoformat() }}" required></div>
+                <div class="col-6 mb-3"><label class="form-label" for="irr_status">Status</label><select class="form-select" id="irr_status" name="status">{% for s in statuses %}<option value="{{ s }}">{{ s }}</option>{% endfor %}</select></div>
+            </div>
+            <div class="row">
+                <div class="col-4 mb-3"><label class="form-label" for="irr_method">Method</label><select class="form-select" id="irr_method" name="method"><option value="">-</option>{% for m in methods %}<option value="{{ m }}">{{ m }}</option>{% endfor %}</select></div>
+                <div class="col-4 mb-3"><label class="form-label" for="irr_min">Minutes</label><input type="number" min="1" class="form-control" id="irr_min" name="duration_minutes"></div>
+                <div class="col-4 mb-3"><label class="form-label" for="irr_l">Litres</label><input type="number" min="0" step="0.1" class="form-control" id="irr_l" name="water_liters"></div>
+            </div>
+            <div class="mb-1"><label class="form-label" for="irr_notes">Notes</label><input type="text" class="form-control" id="irr_notes" name="notes" maxlength="300"></div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button><button type="submit" class="btn btn-success">Save record</button></div>
+    </form>
+</div></div></div>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+{% if summary.by_field %}
+<script>
+SF.chart('waterChart', { type: 'bar', data: { labels: {{ summary.week_labels|tojson }}, datasets: [{ label: 'Litres entered', data: {{ summary.week_liters|tojson }}, backgroundColor: '#0B6B63', borderRadius: 8 }] }, options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true }, x: { grid: { display: false } } } } }, {{ 'true' if summary.any_liters else 'false' }});
+</script>
+{% endif %}
+{% endblock %}

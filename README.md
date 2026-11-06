@@ -85,8 +85,6 @@ secrets from environment only, `textContent` rendering for AI output.
 A complete, beginner-friendly full-stack web application to help farmers manage fields, crops,
 workers, tasks, inventory, and expenses — all from one centralized, role-based dashboard.
 
-Built as a final-year B.Sc Computer Science project (TN Skill / SmartBridge).
-
 ---
 
 ## 📋 Project Description
